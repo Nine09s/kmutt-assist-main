@@ -7,15 +7,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    defaults:
+      run:
+        working-directory: ./kmutt-assist-main
 
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
           cache: 'npm'
+          # 👇 ชี้เป้า lock file ให้ cache
+          cache-dependency-path: './kmutt-assist-main/package-lock.json'
           
       - name: Install and Build
         run: |
