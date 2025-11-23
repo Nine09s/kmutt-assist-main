@@ -4,7 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Send, FileText, ChevronDown, ChevronUp, Download } from "lucide-react";
+import {
+  Send,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Download,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -21,6 +27,7 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
+  const API_URL = "https://unthwarted-zoe-supermodestly.ngrok-free.dev";
 
   const quickQuestions = [
     "ขั้นตอนการลาพักการศึกษา",
@@ -37,25 +44,40 @@ const Chat = () => {
     setInput("");
     setLoading(true);
 
-    // Simulate API response
-    setTimeout(() => {
+    try {
+      // ยิงข้อมูลไปที่ Python Backend
+      const res = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: input }), // ส่งข้อความที่ user พิมพ์
+      });
+
+      if (!res.ok) throw new Error("Server error");
+
+      const data = await res.json();
+
+      // สร้างข้อความตอบกลับจาก AI
       const assistantMessage: Message = {
         role: "assistant",
-        content: `ขั้นตอนการ${input}:\n\n1. เตรียมเอกสารที่จำเป็น\n2. กรอกแบบฟอร์มให้ครบถ้วน\n3. ยื่นคำร้องที่งานทะเบียน\n4. รอการอนุมัติ (ประมาณ 3-5 วันทำการ)\n\nสำหรับข้อมูลเพิ่มเติม สามารถดาวน์โหลดแบบฟอร์มด้านล่างได้เลยครับ`,
-        sources: [
-          { doc: "ระเบียบการศึกษา KMUTT 2566", page: 15 },
-          { doc: "คู่มือนักศึกษา", page: 42 },
-        ],
-        relatedForms: ["RO.01", "RO.12"],
-        suggestions: [
-          "เอกสารที่ต้องใช้มีอะไรบ้าง",
-          "ระยะเวลาในการพิจารณา",
-          "สามารถยื่นคำร้องออนไลน์ได้ไหม",
-        ],
+        content: data.reply, // ข้อความที่ AI ตอบกลับมา
+        sources: [], // (อนาคตถ้า Backend ส่ง sources มา ค่อยแก้ตรงนี้)
+        relatedForms: [],
+        suggestions: [],
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
-      setLoading(false);
-    }, 1000);
+    } catch (error) {
+      console.error("Connection Error:", error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ติดต่อ Server ไม่ได้ เช็คว่าเปิด ngrok หรือยัง?",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false); // ปิดสถานะโหลดหมุนๆ
+    }
   };
 
   const handleQuickQuestion = (question: string) => {
