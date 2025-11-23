@@ -62,7 +62,7 @@ const Chat = () => {
       const assistantMessage: Message = {
         role: "assistant",
         content: data.reply, // ข้อความที่ AI ตอบกลับมา
-        sources: [], // (อนาคตถ้า Backend ส่ง sources มา ค่อยแก้ตรงนี้)
+        sources: data.sources || [], // (อนาคตถ้า Backend ส่ง sources มา ค่อยแก้ตรงนี้)
         relatedForms: [],
         suggestions: [],
       };
