@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,259 +10,195 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Trash2,
+  ExternalLink,  
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  sources?: Array<{ doc: string; page: number }>;
+  // ✅ เพิ่ม url: string เข้าไปใน Type definition
+  sources?: Array<{ doc: string; page: number; url: string }>;
   relatedForms?: string[];
   suggestions?: string[];
 }
 
 const Chat = () => {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
-  const API_URL = "https://unthwarted-zoe-supermodestly.ngrok-free.dev";
 
-  const quickQuestions = [
-    "ขั้นตอนการลาพักการศึกษา",
-    "วิธีถอนรายวิชา",
-    "การขอผ่อนผันค่าเทอม",
-    "เอกสารที่ต้องใช้สำหรับโอนย้าย",
-  ];
+  // 👇 แก้ URL ngrok ของคุณที่นี่
+  const API_URL = "https://unthwarted-zoe-supermodestly.ngrok-free.dev"; 
+
+  // ✅ โหลดประวัติแชทเก่าเมื่อเปิดหน้าเว็บ
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = sessionStorage.getItem("chat_history");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // ✅ บันทึกประวัติแชททุกครั้งที่มีการเปลี่ยนแปลง
+  useEffect(() => {
+    sessionStorage.setItem("chat_history", JSON.stringify(messages));
+  }, [messages]);
+
+  const handleClearChat = () => {
+    setMessages([]);
+    sessionStorage.removeItem("chat_history");
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
+    
+    const currentQuestion = input;
     setInput("");
     setLoading(true);
 
     try {
-      // ยิงข้อมูลไปที่ Python Backend
       const res = await fetch(`${API_URL}/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: input }), // ส่งข้อความที่ user พิมพ์
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: currentQuestion }),
       });
 
       if (!res.ok) throw new Error("Server error");
 
       const data = await res.json();
 
-      // สร้างข้อความตอบกลับจาก AI
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.reply, // ข้อความที่ AI ตอบกลับมา
-        sources: data.sources || [], // (อนาคตถ้า Backend ส่ง sources มา ค่อยแก้ตรงนี้)
-        relatedForms: [],
-        suggestions: [],
+        content: data.reply,
+        sources: data.sources || [],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
     } catch (error) {
-      console.error("Connection Error:", error);
+      console.error("Error:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: "ติดต่อ Server ไม่ได้ เช็คว่าเปิด ngrok หรือยัง?",
         variant: "destructive",
       });
     } finally {
-      setLoading(false); // ปิดสถานะโหลดหมุนๆ
+      setLoading(false);
     }
   };
 
-  const handleQuickQuestion = (question: string) => {
-    setInput(question);
-  };
-
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar />
-
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              ค้นหาข้อมูลคำร้อง
-            </h1>
-            <p className="text-muted-foreground">
-              ถามคำถามเกี่ยวกับคำร้องต่างๆ ของ KMUTT
-            </p>
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">น้องผู้ช่วย มจธ. 🤖</h1>
+              <p className="text-muted-foreground">ถามคำถามเกี่ยวกับคำร้องและระเบียบการได้เลย</p>
+            </div>
+            {messages.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleClearChat} className="text-red-500 hover:text-red-600">
+                <Trash2 className="w-4 h-4 mr-2" /> ล้างแชท
+              </Button>
+            )}
           </div>
 
-          {messages.length === 0 && (
-            <div className="mb-6">
-              <p className="text-sm font-medium text-foreground mb-3">
-                คำถามยอดนิยม:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {quickQuestions.map((question) => (
-                  <Button
-                    key={question}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickQuestion(question)}
-                    className="rounded-full"
-                  >
-                    {question}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <Card className="mb-6 min-h-[500px] flex flex-col">
-            <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+          <Card className="min-h-[600px] flex flex-col shadow-lg border-0">
+            <div className="flex-1 p-6 space-y-6 overflow-y-auto max-h-[600px]">
               {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-center">
-                  <div>
-                    <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      เริ่มต้นสนทนาด้วยการถามคำถามเกี่ยวกับคำร้อง
-                    </p>
-                  </div>
+                <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
+                  <FileText className="h-20 w-20 mb-4 text-slate-300" />
+                  <p>ยังไม่มีข้อความ... ลองพิมพ์ถามอะไรดูสิครับ</p>
                 </div>
               ) : (
                 messages.map((message, index) => (
-                  <div key={index}>
-                    <div
-                      className={`flex ${
-                        message.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] space-y-2 ${message.role === "user" ? "items-end flex flex-col" : ""}`}>
+                      
+                      {/* กล่องข้อความ */}
+                      <div className={`rounded-2xl px-5 py-4 shadow-sm ${
                           message.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-br-sm ml-auto"
-                            : "bg-muted text-foreground rounded-bl-sm mr-auto"
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-white border border-slate-100 text-slate-800 rounded-bl-sm"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
                       </div>
-                    </div>
 
-                    {message.role === "assistant" && message.sources && (
-                      <div className="mt-2 ml-0 mr-auto max-w-[80%]">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExpandedSources(
-                              expandedSources === index ? null : index
-                            )
-                          }
-                          className="text-xs text-muted-foreground"
-                        >
-                          แหล่งอ้างอิง ({message.sources.length})
-                          {expandedSources === index ? (
-                            <ChevronUp className="ml-1 h-3 w-3" />
-                          ) : (
-                            <ChevronDown className="ml-1 h-3 w-3" />
-                          )}
-                        </Button>
-                        {expandedSources === index && (
-                          <div className="mt-2 space-y-1">
-                            {message.sources.map((source, i) => (
-                              <p key={i} className="text-xs text-muted-foreground">
-                                • {source.doc} (หน้า {source.page})
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {message.role === "assistant" && message.relatedForms && (
-                      <div className="mt-3 ml-0 mr-auto max-w-[80%] flex flex-wrap gap-2">
-                        {message.relatedForms.map((form) => (
+                      {/* ส่วนแสดง Sources (เฉพาะ Assistant) */}
+                      {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+                        <div className="ml-1">
                           <Button
-                            key={form}
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="gap-2 rounded-full"
-                            onClick={() => {
-                              toast({
-                                title: "กำลังดาวน์โหลด",
-                                description: `ฟอร์ม ${form}`,
-                              });
-                            }}
+                            onClick={() => setExpandedSources(expandedSources === index ? null : index)}
+                            className="text-xs text-slate-500 h-8"
                           >
-                            <Download className="h-3 w-3" />
-                            {form}
+                            📚 แหล่งอ้างอิง ({message.sources.length})
+                            {expandedSources === index ? <ChevronUp className="ml-1 h-3 w-3" /> : <ChevronDown className="ml-1 h-3 w-3" />}
                           </Button>
-                        ))}
-                      </div>
-                    )}
-
-                    {message.role === "assistant" && message.suggestions && (
-                      <div className="mt-3 ml-0 mr-auto max-w-[80%]">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">
-                          คำถามที่เกี่ยวข้อง:
-                        </p>
-                        <div className="space-y-1">
-                          {message.suggestions.map((suggestion) => (
-                            <Button
-                              key={suggestion}
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setInput(suggestion)}
-                              className="w-full justify-start text-xs h-auto py-2 px-3 text-left whitespace-normal"
-                            >
-                              {suggestion}
-                            </Button>
-                          ))}
+                          
+                          {expandedSources === index && (
+                            <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-2 animate-in fade-in slide-in-from-top-2">
+                              {message.sources.map((source, i) => (
+                                <div key={i} className="flex items-center gap-2 text-xs">
+                                  <FileText className="w-3 h-3 text-slate-400" />
+                                  <span className="text-slate-600 truncate max-w-[200px]">{source.doc}</span>
+                                  {source.url && source.url !== "#" && (
+                                    <a 
+                                      href={source.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="ml-auto text-blue-600 hover:underline flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-full"
+                                    >
+                                      <ExternalLink className="w-3 h-3" /> ดาวน์โหลด
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))
               )}
-
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-muted text-foreground rounded-2xl rounded-bl-sm px-4 py-3 mr-auto">
-                    <div className="flex space-x-2">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
+                  <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                    <div className="flex space-x-1">
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]" />
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-border p-4">
-              <div className="flex gap-2">
+            <div className="p-4 bg-white border-t border-slate-100 rounded-b-xl">
+              <div className="flex gap-3">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSend()}
                   placeholder="พิมพ์คำถามของคุณ..."
-                  className="rounded-xl"
+                  className="rounded-full bg-slate-50 border-slate-200 focus-visible:ring-primary"
                   disabled={loading}
                 />
-                <Button
-                  onClick={handleSend}
-                  disabled={!input.trim() || loading}
-                  className="rounded-xl"
-                >
-                  <Send className="h-4 w-4" />
+                <Button onClick={handleSend} disabled={!input.trim() || loading} className="rounded-full w-12 h-12 p-0 shadow-md">
+                  <Send className="h-5 w-5" />
                 </Button>
               </div>
             </div>
           </Card>
         </div>
       </main>
-
       <Footer />
     </div>
   );
