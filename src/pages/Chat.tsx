@@ -26,7 +26,7 @@ const Chat = () => {
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 👇 แก้ URL ngrok ของคุณที่นี่
+  // 👇 แก้ URL ngrok ของคุณที่นี่ (สำคัญ!)
   const API_URL = "https://unthwarted-zoe-supermodestly.ngrok-free.dev"; 
 
   const quickQuestions = [
@@ -42,6 +42,7 @@ const Chat = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // ✅ บันทึกทุกครั้งที่แชทเปลี่ยน
   useEffect(() => {
     sessionStorage.setItem("chat_history", JSON.stringify(messages));
     scrollToBottom();
@@ -58,8 +59,9 @@ const Chat = () => {
     sessionStorage.removeItem("chat_history");
   };
 
-  // ✅ 2. ฟังก์ชันแปลง Text เป็น Link (Linkify)
+  // ✅ 2. แปลง Text เป็น Link ที่กดได้
   const renderMessageContent = (text: string) => {
+    // Regex จับ URL
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
     return parts.map((part, index) => {
@@ -123,7 +125,6 @@ const Chat = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar />
-
       <main className="flex-1 container mx-auto px-4 py-8 flex flex-col h-[calc(100vh-60px)]">
         <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
           
@@ -170,7 +171,6 @@ const Chat = () => {
                             : "bg-white border border-slate-100 text-slate-800 rounded-bl-sm"
                         }`}
                       >
-                        {/* เรียกใช้ฟังก์ชัน Linkify ตรงนี้ */}
                         {renderMessageContent(message.content)}
                       </div>
 
