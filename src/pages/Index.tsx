@@ -60,7 +60,7 @@ const Index = () => {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="border-2 border-white text-primary hover:bg-white/10 h-12 px-8 rounded-xl gap-2"
+                    className="bg-white text-primary hover:bg-white/90 shadow-lg gap-2 h-12 px-8 rounded-xl"
                   >
                     <FileText className="h-5 w-5" />
                     สร้างคำร้อง
