@@ -191,7 +191,12 @@ const Index = () => {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl mx-auto">
               {popularRequests.map((request) => (
-                <Link key={request.form} to="/chat">
+                <Link 
+                  key={request.form} 
+                  to="/chat" 
+                  // ✅ เพิ่มบรรทัดนี้: ส่งข้อความไปให้หน้า Chat
+                  state={{ autoSend: `ขอรายละเอียดเรื่อง ${request.title} (${request.form}) หน่อยครับ` }}
+                >
                   <Card className="p-4 transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer border-2 hover:border-primary">
                     <div className="flex items-center justify-between">
                       <div>

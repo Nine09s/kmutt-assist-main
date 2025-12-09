@@ -187,7 +187,7 @@ const FormGuide = () => {
               <Button 
                 variant="ghost" 
                 className="pl-0 text-slate-500 hover:text-orange-600 -ml-2 mb-2" 
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/chat")}
               >
                 <ArrowLeft className="w-4 h-4 mr-1" /> กลับไปแชท
               </Button>
