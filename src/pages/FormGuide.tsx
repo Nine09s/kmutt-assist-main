@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Sparkles, FileText, Download, User, Hash, School, Calendar, 
-  ArrowLeft, CheckCircle2, MapPin, Phone, Mail, FileType
+  ArrowLeft, CheckCircle2, GraduationCap, Home, MapPin, Phone, Mail, FileType, 
+  Trash2, RotateCcw // ✅ เพิ่มไอคอนสำหรับปุ่มล้าง
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar"; // ✅ Import กลับมาแล้ว
-import Footer from "@/components/Footer"; // ✅ Import กลับมาแล้ว
+import Navbar from "@/components/Navbar"; 
+import Footer from "@/components/Footer"; 
 
 const Badge = ({ children, className }: { children: React.ReactNode, className?: string }) => (
   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>
@@ -66,11 +67,13 @@ const FORM_CONFIG: Record<string, FieldConfig[]> = {
     { label: "ประเภทการลา", key: "leave_type", type: "text", placeholder: "ลาป่วย หรือ ลากิจ", width: "full" },
     { label: "ตั้งแต่วันที่", key: "start_date", type: "text", placeholder: "10 มกราคม 2568", width: "half" },
     { label: "ถึงวันที่", key: "end_date", type: "text", placeholder: "12 มกราคม 2568", width: "half" },
+    { label: "จำนวนวัน", key: "total_days", type: "number", width: "third" },
+    { label: "เบอร์โทรศัพท์", key: "student_tel", type: "text", width: "half", icon: Phone },
     { label: "เนื่องจากสาเหตุ", key: "reason", type: "textarea", placeholder: "ระบุอาการป่วย หรือธุระ...", width: "full" },
   ],
 };
 
-const FormGuide = () => {
+const FormGuideContent = () => {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -78,18 +81,25 @@ const FormGuide = () => {
   const [isAiFilled, setIsAiFilled] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // URL Backend ของคุณ
+  // URL Backend
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
-  const [formData, setFormData] = useState({
-    studentId: "",
-    name: "",
-    faculty: "",
-    year: "",
-    formType: "",
+  // ✅ 1. Load Data from LocalStorage (ถ้ามี)
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem("form_guide_data");
+    return saved ? JSON.parse(saved) : {
+      studentId: "",
+      name: "",
+      faculty: "",
+      year: "",
+      formType: "",
+    };
   });
 
-  const [dynamicData, setDynamicData] = useState<Record<string, string>>({});
+  const [dynamicData, setDynamicData] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem("form_guide_dynamic");
+    return saved ? JSON.parse(saved) : {};
+  });
 
   const forms = [
     { id: "RO.01", name: "คำร้องทั่วไป (General Request)" },
@@ -102,6 +112,16 @@ const FormGuide = () => {
     { id: "RO.22", "name": "คำร้องขอผ่อนผันค่าเทอม" },
   ];
 
+  // ✅ 2. Auto-Save to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("form_guide_data", JSON.stringify(formData));
+  }, [formData]);
+
+  useEffect(() => {
+    localStorage.setItem("form_guide_dynamic", JSON.stringify(dynamicData));
+  }, [dynamicData]);
+
+  // ✅ Effect: รับข้อมูลจาก AI (ถ้ามาจาก Chat ให้ทับข้อมูลเดิม)
   useEffect(() => {
     if (location.state) {
       const data = location.state;
@@ -109,11 +129,11 @@ const FormGuide = () => {
 
       setFormData(prev => ({
         ...prev,
-        studentId: data.student_id || "",
-        name: data.name || "",
-        faculty: data.faculty || "",
-        year: data.year || "",
-        formType: data.form_id || "" 
+        studentId: data.student_id || prev.studentId, // ถ้า AI ไม่ส่งมา ให้ใช้ของเดิม
+        name: data.name || prev.name,
+        faculty: data.faculty || prev.faculty,
+        year: data.year || prev.year,
+        formType: data.form_id || prev.formType 
       }));
 
       const aiDraft: Record<string, string> = {};
@@ -123,7 +143,11 @@ const FormGuide = () => {
       if (data.draft_subject) aiDraft["request_subject"] = data.draft_subject;
       
       setDynamicData(prev => ({ ...prev, ...aiDraft }));
+
       setIsAiFilled(true);
+      
+      // ล้าง state เพื่อไม่ให้ toast เด้งซ้ำเวลารีเฟรช
+      window.history.replaceState({}, document.title);
       
       toast({
         title: "✨ AI ช่วยกรอกข้อมูลให้แล้ว!",
@@ -132,6 +156,24 @@ const FormGuide = () => {
       });
     }
   }, [location, toast]);
+
+  // --- ฟังก์ชันล้างข้อมูลแยกส่วน ---
+  const clearPersonalInfo = () => {
+    setFormData(prev => ({
+      ...prev,
+      studentId: "",
+      name: "",
+      faculty: "",
+      year: "",
+      // formType เก็บไว้ ไม่ล้าง
+    }));
+    toast({ description: "ล้างข้อมูลนักศึกษาแล้ว" });
+  };
+
+  const clearFormDetails = () => {
+    setDynamicData({});
+    toast({ description: "ล้างรายละเอียดฟอร์มแล้ว" });
+  };
 
   const handleGenerateDoc = async () => {
     if (!formData.studentId || !formData.name || !formData.formType) {
@@ -180,14 +222,16 @@ const FormGuide = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       <Navbar />
+
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
+          
           <div className="mb-6 flex items-center justify-between">
             <div>
               <Button 
                 variant="ghost" 
                 className="pl-0 text-slate-500 hover:text-orange-600 -ml-2 mb-2" 
-                onClick={() => navigate("/chat")}
+                onClick={() => navigate("/")}
               >
                 <ArrowLeft className="w-4 h-4 mr-1" /> กลับไปแชท
               </Button>
@@ -213,7 +257,10 @@ const FormGuide = () => {
           )}
 
           <div className="grid gap-6 md:grid-cols-12">
+            
+            {/* Left Column: Basic Info */}
             <div className="md:col-span-12 lg:col-span-5 space-y-6">
+              
               <Card className="p-6 border-slate-200 shadow-md">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700">
                   <span className="bg-orange-100 w-7 h-7 flex items-center justify-center rounded-full text-orange-600 text-sm">1</span>
@@ -225,7 +272,11 @@ const FormGuide = () => {
                     value={formData.formType} 
                     onValueChange={(val) => {
                       setFormData({...formData, formType: val});
-                      setDynamicData({});
+                      // Reset dynamic data when form changes? Maybe user wants to keep text?
+                      // Let's NOT clear it automatically if user wants persist, 
+                      // but logically different forms have different fields.
+                      // Clearing is safer to avoid confusion.
+                      setDynamicData({}); 
                     }}
                   >
                     <SelectTrigger className="h-12 rounded-xl border-slate-200 focus:ring-orange-500 bg-white">
@@ -249,7 +300,16 @@ const FormGuide = () => {
                     <span className="bg-orange-100 w-7 h-7 flex items-center justify-center rounded-full text-orange-600 text-sm">2</span>
                     ข้อมูลนักศึกษา
                   </h2>
-                  {isAiFilled && <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Auto-filled</Badge>}
+                  {/* ปุ่มล้างข้อมูลส่วนตัว */}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={clearPersonalInfo}
+                    className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                    title="ล้างข้อมูลนักศึกษา"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
                 </div>
                 
                 <div className="space-y-4">
@@ -284,7 +344,19 @@ const FormGuide = () => {
                       <span className="bg-orange-100 w-8 h-8 flex items-center justify-center rounded-full text-orange-600 text-lg">3</span>
                       รายละเอียด ({formData.formType})
                     </h2>
-                    <span className="text-xs text-slate-400">กรอกข้อมูลให้ครบถ้วน</span>
+                    {/* ปุ่มล้างข้อมูลรายละเอียด */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">กรอกข้อมูลให้ครบถ้วน</span>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={clearFormDetails}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                            title="ล้างรายละเอียด"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                        </Button>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-5 flex-1 content-start">
@@ -354,5 +426,11 @@ const FormGuide = () => {
     </div>
   );
 };
+
+const FormGuide = () => (
+  <MemoryRouter>
+    <FormGuideContent />
+  </MemoryRouter>
+);
 
 export default FormGuide;
