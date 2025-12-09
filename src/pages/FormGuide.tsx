@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom"; // ❌ ไม่ต้องมี MemoryRouter
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Sparkles, FileText, Download, User, Hash, School, Calendar, 
-  ArrowLeft, CheckCircle2, GraduationCap, Home, MapPin, Phone, Mail, FileType, 
-  Trash2, RotateCcw // ✅ เพิ่มไอคอนสำหรับปุ่มล้าง
+  ArrowLeft, CheckCircle2, MapPin, Phone, Mail, FileType, 
+  Trash2, RotateCcw 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// ✅ Import จากไฟล์จริงของคุณ
 import Navbar from "@/components/Navbar"; 
 import Footer from "@/components/Footer"; 
 
@@ -73,7 +75,7 @@ const FORM_CONFIG: Record<string, FieldConfig[]> = {
   ],
 };
 
-const FormGuideContent = () => {
+const FormGuide = () => {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -84,21 +86,29 @@ const FormGuideContent = () => {
   // URL Backend
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
-  // ✅ 1. Load Data from LocalStorage (ถ้ามี)
+  // Safe Load Data from LocalStorage
   const [formData, setFormData] = useState(() => {
-    const saved = localStorage.getItem("form_guide_data");
-    return saved ? JSON.parse(saved) : {
-      studentId: "",
-      name: "",
-      faculty: "",
-      year: "",
-      formType: "",
-    };
+    try {
+      const saved = localStorage.getItem("form_guide_data");
+      return saved ? JSON.parse(saved) : {
+        studentId: "",
+        name: "",
+        faculty: "",
+        year: "",
+        formType: "",
+      };
+    } catch (e) {
+      return { studentId: "", name: "", faculty: "", year: "", formType: "" };
+    }
   });
 
   const [dynamicData, setDynamicData] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem("form_guide_dynamic");
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem("form_guide_dynamic");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
   });
 
   const forms = [
@@ -112,7 +122,7 @@ const FormGuideContent = () => {
     { id: "RO.22", "name": "คำร้องขอผ่อนผันค่าเทอม" },
   ];
 
-  // ✅ 2. Auto-Save to LocalStorage
+  // Auto-Save to LocalStorage
   useEffect(() => {
     localStorage.setItem("form_guide_data", JSON.stringify(formData));
   }, [formData]);
@@ -121,7 +131,7 @@ const FormGuideContent = () => {
     localStorage.setItem("form_guide_dynamic", JSON.stringify(dynamicData));
   }, [dynamicData]);
 
-  // ✅ Effect: รับข้อมูลจาก AI (ถ้ามาจาก Chat ให้ทับข้อมูลเดิม)
+  // Effect: รับข้อมูลจาก AI
   useEffect(() => {
     if (location.state) {
       const data = location.state;
@@ -129,7 +139,7 @@ const FormGuideContent = () => {
 
       setFormData(prev => ({
         ...prev,
-        studentId: data.student_id || prev.studentId, // ถ้า AI ไม่ส่งมา ให้ใช้ของเดิม
+        studentId: data.student_id || prev.studentId,
         name: data.name || prev.name,
         faculty: data.faculty || prev.faculty,
         year: data.year || prev.year,
@@ -146,7 +156,7 @@ const FormGuideContent = () => {
 
       setIsAiFilled(true);
       
-      // ล้าง state เพื่อไม่ให้ toast เด้งซ้ำเวลารีเฟรช
+      // ล้าง state เพื่อไม่ให้ toast เด้งซ้ำ
       window.history.replaceState({}, document.title);
       
       toast({
@@ -157,7 +167,7 @@ const FormGuideContent = () => {
     }
   }, [location, toast]);
 
-  // --- ฟังก์ชันล้างข้อมูลแยกส่วน ---
+  // ฟังก์ชันล้างข้อมูล
   const clearPersonalInfo = () => {
     setFormData(prev => ({
       ...prev,
@@ -165,7 +175,6 @@ const FormGuideContent = () => {
       name: "",
       faculty: "",
       year: "",
-      // formType เก็บไว้ ไม่ล้าง
     }));
     toast({ description: "ล้างข้อมูลนักศึกษาแล้ว" });
   };
@@ -272,11 +281,8 @@ const FormGuideContent = () => {
                     value={formData.formType} 
                     onValueChange={(val) => {
                       setFormData({...formData, formType: val});
-                      // Reset dynamic data when form changes? Maybe user wants to keep text?
-                      // Let's NOT clear it automatically if user wants persist, 
-                      // but logically different forms have different fields.
-                      // Clearing is safer to avoid confusion.
-                      setDynamicData({}); 
+                      // ไม่ล้าง dynamicData อัตโนมัติ (เผื่อผู้ใช้เปลี่ยนใจกลับมา)
+                      // หรือถ้าอยากล้างให้ uncomment: setDynamicData({});
                     }}
                   >
                     <SelectTrigger className="h-12 rounded-xl border-slate-200 focus:ring-orange-500 bg-white">
@@ -300,7 +306,6 @@ const FormGuideContent = () => {
                     <span className="bg-orange-100 w-7 h-7 flex items-center justify-center rounded-full text-orange-600 text-sm">2</span>
                     ข้อมูลนักศึกษา
                   </h2>
-                  {/* ปุ่มล้างข้อมูลส่วนตัว */}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -344,7 +349,6 @@ const FormGuideContent = () => {
                       <span className="bg-orange-100 w-8 h-8 flex items-center justify-center rounded-full text-orange-600 text-lg">3</span>
                       รายละเอียด ({formData.formType})
                     </h2>
-                    {/* ปุ่มล้างข้อมูลรายละเอียด */}
                     <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-400">กรอกข้อมูลให้ครบถ้วน</span>
                         <Button 
@@ -426,11 +430,5 @@ const FormGuideContent = () => {
     </div>
   );
 };
-
-const FormGuide = () => (
-  <MemoryRouter>
-    <FormGuideContent />
-  </MemoryRouter>
-);
 
 export default FormGuide;
