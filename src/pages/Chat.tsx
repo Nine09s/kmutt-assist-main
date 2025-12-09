@@ -1,12 +1,38 @@
 import { useState, useEffect, useRef } from "react";
+// ใช้ MemoryRouter เพื่อป้องกัน Error useLocation แต่ยังทำงานได้
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight } from "lucide-react";
+import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, GraduationCap, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate, useLocation, MemoryRouter } from "react-router-dom";
+
+// --- Components ส่วนหัวและท้าย (ใส่ไว้ในนี้เพื่อให้ชัวร์ว่าแสดงผลได้) ---
+
+const Navbar = () => (
+  <nav className="bg-white border-b border-slate-200 py-3 px-4 shadow-sm sticky top-0 z-50">
+    <div className="container mx-auto max-w-5xl flex justify-between items-center">
+      <div className="flex items-center gap-2 font-bold text-xl text-orange-600 select-none">
+        <GraduationCap className="w-8 h-8" />
+        <span>KMUTT Assistant</span>
+      </div>
+      <a href="/" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
+        <Home className="w-5 h-5" />
+        <span className="hidden sm:inline">หน้าหลัก</span>
+      </a>
+    </div>
+  </nav>
+);
+
+const Footer = () => (
+  <footer className="bg-slate-100 border-t border-slate-200 py-4 mt-auto">
+    <div className="container mx-auto text-center text-slate-500 text-xs">
+      <p>© {new Date().getFullYear()} KMUTT Student Assistant. Created for educational purpose.</p>
+    </div>
+  </footer>
+);
+
+// --- ส่วนเนื้อหาหลัก ---
 
 interface Source {
   doc: string;
@@ -20,16 +46,17 @@ interface Message {
   sources?: Source[];
 }
 
-const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น Content เพื่อให้ Wrapper ครอบได้
+const ChatContent = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 👇 URL ของ Railway
+  // URL Backend
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
   const quickQuestions = [
@@ -39,12 +66,21 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
     "ขอใบเกรด (Transcript)",
   ];
 
+  // ✅ 1. โหลดประวัติแชทแบบปลอดภัย (Safe Loading)
   const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return [];
+    try {
       const saved = sessionStorage.getItem("chat_history");
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      
+      const parsed = JSON.parse(saved);
+      // ตรวจสอบว่าเป็น Array จริงไหม (กันข้อมูลพัง)
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Found corrupted chat history. Clearing storage...");
+      sessionStorage.removeItem("chat_history");
+      return [];
     }
-    return [];
   });
 
   useEffect(() => {
@@ -61,49 +97,43 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
   const handleClearChat = () => {
     setMessages([]);
     sessionStorage.removeItem("chat_history");
+    toast({ description: "ล้างประวัติการแชทเรียบร้อย" });
   };
 
+  // ✅ ดักจับข้อมูล Auto-send จากหน้าอื่น
   useEffect(() => {
-      if (location.state && location.state.autoSend) {
-        const messageToSend = location.state.autoSend;
-        handleSend(messageToSend);
-        // ล้าง State ออก (เพื่อไม่ให้มันส่งซ้ำเวลากด Refresh)
-        window.history.replaceState({}, document.title);
-      }
-    }, []);
+    if (location.state && location.state.autoSend) {
+      const messageToSend = location.state.autoSend;
+      handleSend(messageToSend);
+      // ล้าง State เพื่อไม่ให้ส่งซ้ำ
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
 
-  // ฟังก์ชันแกะ JSON จาก AI
   const parseBotMessage = (content: string) => {
-    const regex = /\[\[FORM_DATA: (.*?)\]\]/;
-    const match = content.match(regex);
-    
-    if (match) {
-      try {
+    try {
+      const regex = /\[\[FORM_DATA: (.*?)\]\]/;
+      const match = content.match(regex);
+      if (match) {
         const jsonStr = match[1];
         const formData = JSON.parse(jsonStr);
         const cleanContent = content.replace(regex, "").trim(); 
         return { cleanContent, formData };
-      } catch (e) {
-        console.error("JSON Parse Error:", e);
       }
+    } catch (e) {
+      console.error("Error parsing bot message:", e);
     }
     return { cleanContent: content, formData: null };
   };
 
   const renderMessageContent = (text: string) => {
+    if (!text) return null;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
     return parts.map((part, index) => {
       if (part.match(urlRegex)) {
         return (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            // 🎨 เปลี่ยนลิงก์เป็นสีส้ม
-            className="text-orange-600 underline break-all hover:text-orange-800 font-medium"
-          >
+          <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-orange-600 underline break-all hover:text-orange-800 font-medium">
             {part}
           </a>
         );
@@ -128,15 +158,12 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
       });
 
       if (!res.ok) throw new Error("Server error");
-
       const data = await res.json();
-
       const assistantMessage: Message = {
         role: "assistant",
         content: data.reply,
         sources: data.sources || [],
       };
-
       setMessages((prev) => [...prev, assistantMessage]);
 
     } catch (error) {
@@ -160,7 +187,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
           <div className="flex justify-between items-center mb-4 shrink-0 px-2">
             <div>
               <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                {/* 🎨 ไอคอนหัวข้อเป็นสีส้ม */}
                 <MessageSquare className="w-6 h-6 text-orange-500" /> น้องผู้ช่วย มจธ.
               </h1>
               <p className="text-xs text-slate-500">ถามเรื่องทะเบียน เอกสาร คำร้อง ได้ตลอด 24 ชม.</p>
@@ -175,7 +201,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center opacity-60 space-y-4">
                   <div className="bg-orange-100 p-6 rounded-full animate-pulse">
-                    {/* 🎨 ไอคอนหน้าว่างเป็นสีส้ม */}
                     <FileText className="h-12 w-12 text-orange-500" />
                   </div>
                   <div>
@@ -193,7 +218,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                     <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                       <div className={`max-w-[85%] md:max-w-[75%] space-y-2 ${message.role === "user" ? "items-end flex flex-col" : ""}`}>
                         
-                        {/* 🎨 Bubble ข้อความ: User เป็นสีส้ม, Assistant เป็นสีขาว */}
                         <div className={`rounded-2xl px-5 py-3 shadow-sm text-sm leading-relaxed whitespace-pre-wrap break-words ${
                             message.role === "user"
                               ? "bg-orange-500 text-white rounded-br-sm"
@@ -203,7 +227,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                           {renderMessageContent(cleanContent)}
                         </div>
 
-                        {/* ปุ่มไปหน้าฟอร์ม */}
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
                             <Button 
@@ -217,7 +240,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                           </div>
                         )}
 
-                        {/* Sources */}
                         {message.role === "assistant" && message.sources && message.sources.length > 0 && (
                           <div className="ml-1">
                             <Button
@@ -233,7 +255,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                             {expandedSources === index && (
                               <div className="mt-2 p-2 bg-white rounded-lg border border-slate-200 shadow-sm space-y-1 w-full max-w-sm">
                                 {message.sources.map((source, i) => (
-                                  // 🎨 ลิงก์แหล่งข้อมูลเป็นสีส้มเมื่อ Hover
                                   <a key={i} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs p-2 hover:bg-orange-50 rounded-md transition-colors group">
                                     <FileText className="w-4 h-4 text-slate-400 group-hover:text-orange-500 shrink-0" />
                                     <span className="text-slate-600 group-hover:text-orange-700 font-medium truncate flex-1">{source.doc}</span>
@@ -253,7 +274,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                 <div className="flex justify-start">
                   <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                     <div className="flex space-x-1">
-                      {/* 🎨 Loading Animation สีส้ม */}
                       <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
                       <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.2s]" />
                       <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -270,7 +290,6 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                     key={q}
                     onClick={() => handleSend(q)}
                     disabled={loading}
-                    // 🎨 ปุ่มคำถามด่วน Hover สีส้ม
                     className="whitespace-nowrap px-3 py-1.5 rounded-full bg-slate-50 text-xs text-slate-600 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all border border-slate-200 font-medium"
                   >
                     {q}
@@ -284,14 +303,12 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSend()}
                   placeholder="พิมพ์คำถามของคุณที่นี่..."
-                  // 🎨 Input Focus สีส้ม
                   className="rounded-full bg-slate-50 border-slate-200 focus-visible:ring-orange-500 h-12 pl-5 pr-14"
                   disabled={loading}
                 />
                 <Button 
                   onClick={() => handleSend()} 
                   disabled={!input.trim() || loading} 
-                  // 🎨 ปุ่มส่งข้อความสีส้ม
                   className="absolute right-1 top-1 rounded-full w-10 h-10 p-0 shadow-sm bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   <Send className="h-5 w-5" />
@@ -306,7 +323,7 @@ const ChatContent = () => { // ✅ เปลี่ยนชื่อเป็น
   );
 };
 
-// ✅ เพิ่ม Wrapper เพื่อแก้ปัญหา Router Error
+// ✅ Wrapper Router: ป้องกัน Error useLocation และหน้าขาว
 const Chat = () => {
   return (
     <MemoryRouter>
