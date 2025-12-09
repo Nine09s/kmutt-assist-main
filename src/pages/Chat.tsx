@@ -6,41 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, GraduationCap, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// --- Inline Components ---
-
-const Navbar = () => {
-  const navigate = useNavigate(); // ใช้ navigate แทน a href
-  return (
-    <nav className="bg-white border-b border-slate-200 py-3 px-4 shadow-sm sticky top-0 z-50">
-      <div className="container mx-auto max-w-5xl flex justify-between items-center">
-        <div className="flex items-center gap-2 font-bold text-xl text-orange-600 select-none">
-          <GraduationCap className="w-8 h-8" />
-          <span>KMUTT Assistant</span>
-        </div>
-
-        {/* ✅ แก้ไขปุ่ม Home ให้ใช้ navigate (รองรับ HashRouter) */}
-        <button 
-          onClick={() => navigate("/")}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-        >
-          <Home className="w-5 h-5" />
-          <span className="hidden sm:inline">หน้าหลัก</span>
-        </button>
-      </div>
-    </nav>
-  );
-};
-
-const Footer = () => {
-  return (
-    <footer className="bg-slate-100 border-t border-slate-200 py-4 mt-auto">
-      <div className="container mx-auto text-center text-slate-500 text-xs">
-        <p>© {new Date().getFullYear()} KMUTT Student Assistant. Created for educational purpose.</p>
-      </div>
-    </footer>
-  );
-};
-
 // --- Main Chat Logic ---
 
 interface Source {
@@ -192,7 +157,6 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
-      <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col h-[calc(100vh-130px)]">
         <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
           
@@ -331,7 +295,6 @@ const Chat = () => {
           </Card>
         </div>
       </main>
-      <Footer />
     </div>
   );
 };
