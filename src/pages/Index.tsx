@@ -10,16 +10,17 @@ import {
   Sparkles,
   Clock,
   Shield,
+  ArrowRight,
 } from "lucide-react";
 
 const Index = () => {
   const popularRequests = [
-    { title: "ลาพักการศึกษา", form: "RO.01" },
-    { title: "ถอนรายวิชา", form: "RO.12" },
     { title: "ลาป่วย / ลากิจ", form: "RO.16" },
-    { title: "เพิ่มรายวิชา", form: "RO.18" },
-    { title: "โอนย้ายคณะ", form: "RO.19" },
-    { title: "ขอผ่อนผันการชำระเงิน", form: "RO.22" },
+    { title: "ลาพักการศึกษา (Drop)", form: "RO.12" },
+    { title: "คำร้องทั่วไป", form: "RO.01" },
+    { title: "ลงทะเบียนหน่วยกิต ต่ำ/เกิน", form: "RO.18" },
+    { title: "ขอผ่อนผันค่าเทอม", form: "RO.22" },
+    { title: "เพิ่ม/ลด/ถอน รายวิชา", form: "RO.26" },
   ];
 
   return (
@@ -183,27 +184,33 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Popular Requests */}
-        <section className="py-20 bg-muted/30">
+        {/* Popular Requests Section */}
+        <section className="py-20 bg-white border-t border-slate-100">
           <div className="container mx-auto px-4">
-            <h2 className="mb-8 text-center text-3xl font-bold text-foreground">
+            <h2 className="mb-10 text-center text-3xl font-bold text-slate-800">
               คำร้องยอดนิยม
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl mx-auto">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
               {popularRequests.map((request) => (
                 <Link 
                   key={request.form} 
-                  to="/chat" 
-                  // ✅ เพิ่มบรรทัดนี้: ส่งข้อความไปให้หน้า Chat
-                  state={{ autoSend: `ขอรายละเอียดเรื่อง ${request.title} (${request.form}) หน่อยครับ` }}
+                  to="/chat"
+                  // ✨ ส่งข้อความไปหน้าแชทอัตโนมัติเมื่อกด
+                  state={{ autoSend: `ขอรายละเอียดและวิธีเขียน ${request.title} (${request.form}) หน่อยครับ` }}
                 >
-                  <Card className="p-4 transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer border-2 hover:border-primary">
+                  <Card className="p-6 transition-all hover:shadow-lg hover:-translate-y-1 cursor-pointer border border-slate-100 hover:border-orange-200 group">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-foreground">{request.title}</p>
-                        <p className="text-sm text-muted-foreground">{request.form}</p>
+                        <p className="font-semibold text-slate-700 group-hover:text-orange-600 transition-colors">
+                          {request.title}
+                        </p>
+                        <p className="text-sm text-slate-400 mt-1 font-mono">
+                          {request.form}
+                        </p>
                       </div>
-                      <FileText className="h-5 w-5 text-primary" />
+                      <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                        <ArrowRight className="h-5 w-5 text-orange-500" />
+                      </div>
                     </div>
                   </Card>
                 </Link>
