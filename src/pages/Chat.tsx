@@ -1,38 +1,47 @@
 import { useState, useEffect, useRef } from "react";
-// ใช้ MemoryRouter เพื่อป้องกัน Error useLocation แต่ยังทำงานได้
-import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, GraduationCap, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// --- Components ส่วนหัวและท้าย (ใส่ไว้ในนี้เพื่อให้ชัวร์ว่าแสดงผลได้) ---
+// --- Inline Components ---
 
-const Navbar = () => (
-  <nav className="bg-white border-b border-slate-200 py-3 px-4 shadow-sm sticky top-0 z-50">
-    <div className="container mx-auto max-w-5xl flex justify-between items-center">
-      <div className="flex items-center gap-2 font-bold text-xl text-orange-600 select-none">
-        <GraduationCap className="w-8 h-8" />
-        <span>KMUTT Assistant</span>
+const Navbar = () => {
+  const navigate = useNavigate(); // ใช้ navigate แทน a href
+  return (
+    <nav className="bg-white border-b border-slate-200 py-3 px-4 shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto max-w-5xl flex justify-between items-center">
+        <div className="flex items-center gap-2 font-bold text-xl text-orange-600 select-none">
+          <GraduationCap className="w-8 h-8" />
+          <span>KMUTT Assistant</span>
+        </div>
+
+        {/* ✅ แก้ไขปุ่ม Home ให้ใช้ navigate (รองรับ HashRouter) */}
+        <button 
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+        >
+          <Home className="w-5 h-5" />
+          <span className="hidden sm:inline">หน้าหลัก</span>
+        </button>
       </div>
-      <a href="/" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
-        <Home className="w-5 h-5" />
-        <span className="hidden sm:inline">หน้าหลัก</span>
-      </a>
-    </div>
-  </nav>
-);
+    </nav>
+  );
+};
 
-const Footer = () => (
-  <footer className="bg-slate-100 border-t border-slate-200 py-4 mt-auto">
-    <div className="container mx-auto text-center text-slate-500 text-xs">
-      <p>© {new Date().getFullYear()} KMUTT Student Assistant. Created for educational purpose.</p>
-    </div>
-  </footer>
-);
+const Footer = () => {
+  return (
+    <footer className="bg-slate-100 border-t border-slate-200 py-4 mt-auto">
+      <div className="container mx-auto text-center text-slate-500 text-xs">
+        <p>© {new Date().getFullYear()} KMUTT Student Assistant. Created for educational purpose.</p>
+      </div>
+    </footer>
+  );
+};
 
-// --- ส่วนเนื้อหาหลัก ---
+// --- Main Chat Logic ---
 
 interface Source {
   doc: string;
@@ -46,17 +55,17 @@ interface Message {
   sources?: Source[];
 }
 
-const ChatContent = () => {
+const Chat = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation(); 
   
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // URL Backend
+  // 👇 URL ของ Railway
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
   const quickQuestions = [
@@ -66,19 +75,11 @@ const ChatContent = () => {
     "ขอใบเกรด (Transcript)",
   ];
 
-  // ✅ 1. โหลดประวัติแชทแบบปลอดภัย (Safe Loading)
   const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window === "undefined") return [];
     try {
       const saved = sessionStorage.getItem("chat_history");
-      if (!saved) return [];
-      
-      const parsed = JSON.parse(saved);
-      // ตรวจสอบว่าเป็น Array จริงไหม (กันข้อมูลพัง)
-      return Array.isArray(parsed) ? parsed : [];
+      return saved ? JSON.parse(saved) : [];
     } catch (e) {
-      console.warn("Found corrupted chat history. Clearing storage...");
-      sessionStorage.removeItem("chat_history");
       return [];
     }
   });
@@ -97,43 +98,51 @@ const ChatContent = () => {
   const handleClearChat = () => {
     setMessages([]);
     sessionStorage.removeItem("chat_history");
-    toast({ description: "ล้างประวัติการแชทเรียบร้อย" });
   };
 
-  // ✅ ดักจับข้อมูล Auto-send จากหน้าอื่น
+  // ✅ Auto-send Logic
   useEffect(() => {
     if (location.state && location.state.autoSend) {
       const messageToSend = location.state.autoSend;
-      handleSend(messageToSend);
-      // ล้าง State เพื่อไม่ให้ส่งซ้ำ
+      const lastMsg = messages[messages.length - 1];
+      if (!lastMsg || lastMsg.content !== messageToSend) {
+         handleSend(messageToSend);
+      }
+      // ใช้ replaceState แบบนี้ปลอดภัยกับ HashRouter
       window.history.replaceState({}, document.title);
     }
   }, []);
 
   const parseBotMessage = (content: string) => {
-    try {
-      const regex = /\[\[FORM_DATA: (.*?)\]\]/;
-      const match = content.match(regex);
-      if (match) {
+    const regex = /\[\[FORM_DATA: (.*?)\]\]/;
+    const match = content.match(regex);
+    
+    if (match) {
+      try {
         const jsonStr = match[1];
         const formData = JSON.parse(jsonStr);
         const cleanContent = content.replace(regex, "").trim(); 
         return { cleanContent, formData };
+      } catch (e) {
+        console.error("JSON Parse Error:", e);
       }
-    } catch (e) {
-      console.error("Error parsing bot message:", e);
     }
     return { cleanContent: content, formData: null };
   };
 
   const renderMessageContent = (text: string) => {
-    if (!text) return null;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
     return parts.map((part, index) => {
       if (part.match(urlRegex)) {
         return (
-          <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-orange-600 underline break-all hover:text-orange-800 font-medium">
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-600 underline break-all hover:text-orange-800 font-medium"
+          >
             {part}
           </a>
         );
@@ -158,12 +167,15 @@ const ChatContent = () => {
       });
 
       if (!res.ok) throw new Error("Server error");
+
       const data = await res.json();
+
       const assistantMessage: Message = {
         role: "assistant",
         content: data.reply,
         sources: data.sources || [],
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
 
     } catch (error) {
@@ -227,10 +239,11 @@ const ChatContent = () => {
                           {renderMessageContent(cleanContent)}
                         </div>
 
+                        {/* ✅ ปุ่มไปหน้าฟอร์ม (แก้ไข Path ให้ตรงกับ App.tsx) */}
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
                             <Button 
-                              onClick={() => navigate("/form", { state: formData })}
+                              onClick={() => navigate("/form-guide", { state: formData })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5" />
@@ -320,15 +333,6 @@ const ChatContent = () => {
       </main>
       <Footer />
     </div>
-  );
-};
-
-// ✅ Wrapper Router: ป้องกัน Error useLocation และหน้าขาว
-const Chat = () => {
-  return (
-    <MemoryRouter>
-      <ChatContent />
-    </MemoryRouter>
   );
 };
 
