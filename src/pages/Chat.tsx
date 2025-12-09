@@ -5,6 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, GraduationCap, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Navbar from "@/components/Navbar"; // ✅ Import กลับมาแล้ว
+import Footer from "@/components/Footer"; // ✅ Import กลับมาแล้ว
+
+// --- Inline Components ---
 
 // --- Main Chat Logic ---
 
@@ -157,6 +161,7 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
+      <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col h-[calc(100vh-130px)]">
         <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
           
@@ -295,6 +300,7 @@ const Chat = () => {
           </Card>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };
