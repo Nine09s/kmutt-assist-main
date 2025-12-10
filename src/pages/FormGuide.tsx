@@ -68,8 +68,7 @@ const FORM_CONFIG: Record<string, FieldConfig[]> = {
   "RO.01": [
     { label: "เรื่องที่ต้องการร้องขอ", key: "request_subject", type: "text", placeholder: "เช่น ขอลงทะเบียนเรียนข้ามหลักสูตร", width: "full" },
     { label: "เรียน (ผู้รับเรื่อง)", key: "recipient", type: "text", placeholder: "เช่น คณบดีคณะ...", width: "full" },
-    { label: "สาขาวิชา/ภาควิชา", key: "department", type: "text", placeholder: "เช่น วิศวกรรมคอมพิวเตอร์", width: "half" },
-    { label: "อาจารย์ที่ปรึกษา", key: "advisor_name", type: "text", placeholder: "เช่น อ.สมชาย ใจดี", width: "half" },
+    { label: "อาจารย์ที่ปรึกษา", key: "advisor_name", type: "text", placeholder: "เช่น อ.สมชาย ใจดี", width: "full" }, // ปรับ width เป็น full ให้สวยขึ้น
     { label: "รายละเอียดคำร้อง", key: "request_details", type: "textarea", placeholder: "อธิบายความประสงค์และเหตุผล...", width: "full" },
   ],
 };
@@ -205,9 +204,14 @@ const FormGuide = () => {
       ...formData, 
       ...dynamicData,
       student_name: formData.name,
+      // 👉 แก้ตรงนี้: ส่งค่า student_id แบบมีเว้นวรรค แต่ใช้ชื่อตัวแปร student_id เหมือนเดิม
+      student_id: formatStudentIdForDoc(formData.studentId), 
+      faculty: formData.faculty,
       class_level: formData.year,
-      // ส่งรหัสนักศึกษาแบบเว้นวรรค
-      student_id_spaced: formatStudentIdForDoc(formData.studentId),
+      
+      // 2. Map สาขาวิชา: เอาจากข้อมูลส่วนตัวไปใส่ major/department ให้ Word
+      major: formData.department,       
+      department: formData.department,  
       // ส่งวันที่แยก
       date_day: now.getDate().toString(),
       date_month: thaiMonths[now.getMonth()],
