@@ -138,7 +138,8 @@ const FormGuide = () => {
         name: data.name || prev.name,
         faculty: data.faculty || prev.faculty,
         year: data.year || prev.year,
-        formType: data.form_id || prev.formType 
+        formType: data.form_id || prev.formType,
+        department: data.department || data.major || prev.department
       }));
 
       // Mapping ข้อมูลจาก AI เข้า Field ของ Form ใหม่
