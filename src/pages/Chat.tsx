@@ -23,6 +23,21 @@ interface Message {
   sources?: Source[];
 }
 
+const normalizeFormData = (rawData: any) => {
+  if (!rawData) return null;
+  return {
+    ...rawData,
+    // จัดการ Map ตัวแปรที่ชื่อไม่ตรงกัน
+    department: rawData.department || rawData.major || "",
+    // ล้าง format รหัสนักศึกษาให้เป็นตัวเลขล้วน
+    student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, '') : "",
+    // ใส่ค่า default กัน error
+    name: rawData.name || "",
+    faculty: rawData.faculty || "",
+    form_id: rawData.form_id || "",
+  };
+};
+
 const Chat = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -105,31 +120,33 @@ const Chat = () => {
   }, []);
 
   const parseBotMessage = (content: string) => {
-  // Regex จับทุกอย่างที่อยู่ใน [[FORM_DATA: ... ]]
-  const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/;
-  const match = content.match(regex);
+    const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/; 
+    const match = content.match(regex);
+    
+    if (match) {
+      try {
+        let jsonStr = match[1].trim();
+        
+        // จัดการกรณี AI ส่ง Markdown json
+        jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
 
-  if (match) {
-    try {
-      let jsonStr = match[1].trim();
-
-      // 1. ลบ Markdown Code Block (ถ้า AI เผลอใส่มา)
-      jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
-
-      // 2. ลบปีกกาที่เกินมา (เผื่อ AI ส่ง {{ }})
-      if (jsonStr.startsWith("{{")) jsonStr = jsonStr.slice(1, -1);
-
-      const formData = JSON.parse(jsonStr);
-      const cleanContent = content.replace(regex, "").trim();
-
-      return { cleanContent, formData };
-    } catch (e) {
-      console.error("❌ JSON Parse Error:", e);
-      // ถ้าพังจริงๆ ก็ปล่อยผ่าน (ปุ่มจะไม่ขึ้น ดีกว่าแอปขาว)
+        // จัดการกรณี AI ส่งปีกกา 2 ชั้น {{ }}
+        if (jsonStr.startsWith("{{") && jsonStr.endsWith("}}")) {
+             jsonStr = jsonStr.slice(1, -1);
+        }
+        
+        const rawData = JSON.parse(jsonStr);
+        // แปลงข้อมูลให้พร้อมใช้ทันที
+        const formData = normalizeFormData(rawData);
+        
+        const cleanContent = content.replace(regex, "").trim(); 
+        return { cleanContent, formData };
+      } catch (e) {
+        console.error("JSON Parse Error:", e);
+      }
     }
-  }
-  return { cleanContent: content, formData: null };
-};
+    return { cleanContent: content, formData: null };
+  };
 
   const renderMessageContent = (text: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -247,7 +264,7 @@ const Chat = () => {
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
                             <Button 
-                              onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
+                              onClick={() => navigate("/form-guide", { state: formData })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5" />
