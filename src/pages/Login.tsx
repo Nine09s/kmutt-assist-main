@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { GraduationCap, ArrowRight, Loader2 } from "lucide-react";
+import { GraduationCap, ArrowRight, Loader2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -16,12 +16,24 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // 🛑 ป้องกันหน้าเว็บรีโหลดเอง (สำคัญมาก)
     
+    // 🔒 Security Check 1: ตรวจสอบความครบถ้วน
     if (!studentId || !password) {
       toast({
         title: "กรุณากรอกข้อมูล",
-        description: "ต้องใส่รหัสนักศึกษาและรหัสผ่านให้ครบ",
+        description: "ต้องใส่รหัสนักศึกษาและรหัสผ่านให้ครบถ้วน",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 🔒 Security Check 2: ตรวจสอบ Format รหัสนักศึกษา (ต้อง 11 หลัก และเป็นตัวเลข)
+    const kmuttIdRegex = /^\d{11}$/;
+    if (!kmuttIdRegex.test(studentId)) {
+      toast({
+        title: "รหัสนักศึกษาไม่ถูกต้อง",
+        description: "รหัสนักศึกษาต้องเป็นตัวเลข 11 หลัก",
         variant: "destructive",
       });
       return;
@@ -29,20 +41,24 @@ const Login = () => {
 
     setLoading(true);
 
-    // --- จำลองการโหลด (Fake Loading) เพื่อความสมจริง ---
+    // --- จำลองการตรวจสอบกับ Server (Mock Security) ---
     setTimeout(() => {
       setLoading(false);
       
-      // บันทึกชื่อไว้ใช้ในหน้าแชท (Mock Data)
-      const mockUserData = {
+      // 🔒 Security Check 3: (Optional) ถ้าอยากล็อคให้เข้าได้เฉพาะเรา
+      // if (studentId !== "64099999999") { ... แจ้งเตือนรหัสผิด ... return; }
+
+      // ✅ ผ่านการตรวจสอบ -> บันทึก Session
+      const userData = {
         studentId: studentId,
-        name: "นักศึกษา (User)", // ในอนาคตถ้าเชื่อมระบบจริงค่อยดึงชื่อจริงมา
-        faculty: "วิศวกรรมศาสตร์", // ค่าสมมติ
-        year: "3"
+        name: "นักศึกษา มจธ.", // (ในระบบจริงจะดึงชื่อมาจาก Database)
+        faculty: "วิศวกรรมศาสตร์",
+        year: "3",
+        isLoggedIn: true,
+        loginTime: new Date().toISOString()
       };
       
-      // บันทึกลงเครื่อง (เพื่อให้หน้า Form ดึงไปใช้ต่อได้เลย!)
-      localStorage.setItem("form_guide_data", JSON.stringify(mockUserData));
+      localStorage.setItem("form_guide_data", JSON.stringify(userData));
 
       toast({
         title: "เข้าสู่ระบบสำเร็จ",
@@ -50,66 +66,74 @@ const Login = () => {
         className: "bg-green-50 text-green-800 border-green-200",
       });
 
-      // ไปหน้าแรก
-      navigate("/");
+      // 🚀 Redirect ไปหน้า Main (ต้องเป็น /home ไม่ใช่ /)
+      navigate("/home");
       
-    }, 1500); // รอ 1.5 วินาทีให้ดูเหมือนกำลังเช็ค server
+    }, 1500); 
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 shadow-xl border-slate-200 bg-white">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 bg-[url('https://www.kmutt.ac.th/wp-content/uploads/2020/09/KMUTT-BG.jpg')] bg-cover bg-center">
+      {/* Overlay สีขาวจางๆ เพื่อให้อ่านง่าย */}
+      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
+
+      <Card className="w-full max-w-md p-8 shadow-2xl border-slate-200 bg-white relative z-10">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-            <GraduationCap className="w-8 h-8 text-orange-600" />
+          <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
+            <GraduationCap className="w-10 h-10 text-orange-600" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">KMUTT Assistant</h1>
+          <h1 className="text-3xl font-bold text-slate-800">KMUTT Assistant</h1>
           <p className="text-slate-500 text-sm mt-1">ระบบผู้ช่วยอัจฉริยะสำหรับนักศึกษา</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="studentId">รหัสนักศึกษา</Label>
+            <Label htmlFor="studentId" className="text-slate-700 font-medium">รหัสนักศึกษา</Label>
             <Input 
               id="studentId" 
-              placeholder="6xxxxxxxxx" 
+              placeholder="เช่น 6xxxxxxxxxx" 
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
-              className="h-11 rounded-lg"
+              className="h-12 rounded-xl border-slate-200 focus-visible:ring-orange-500"
+              maxLength={11} // จำกัดความยาว
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="password">รหัสผ่าน (New ACIS)</Label>
-            <Input 
-              id="password" 
-              type="password" 
-              placeholder="••••••••" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-11 rounded-lg"
-            />
+            <Label htmlFor="password" className="text-slate-700 font-medium">รหัสผ่าน (New ACIS)</Label>
+            <div className="relative">
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="••••••••" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-12 rounded-xl border-slate-200 focus-visible:ring-orange-500 pr-10"
+              />
+              <Lock className="w-4 h-4 text-slate-400 absolute right-3 top-4" />
+            </div>
           </div>
 
           <Button 
             type="submit" 
-            className="w-full h-11 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-base mt-2"
+            className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-base mt-4 shadow-lg shadow-orange-200 font-bold transition-all hover:scale-[1.01]"
             disabled={loading}
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> กำลังตรวจสอบ...
+                <Loader2 className="w-5 h-5 animate-spin" /> กำลังตรวจสอบ...
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                เข้าสู่ระบบ <ArrowRight className="w-4 h-4" />
+                เข้าสู่ระบบ <ArrowRight className="w-5 h-5" />
               </span>
             )}
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-slate-400">
-          © 2025 Computer Engineering, KMUTT
+        <div className="mt-8 text-center text-xs text-slate-400 border-t border-slate-100 pt-4">
+          © {new Date().getFullYear()} Computer Engineering, KMUTT<br/>
+          Secure Login System
         </div>
       </Card>
     </div>
