@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Chat from "./pages/Chat";
 import FormGuide from "./pages/FormGuide";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -17,7 +18,12 @@ const App = () => (
       <Sonner />
       <HashRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* ✅ เปลี่ยนหน้าแรก (/) เป็น Login */}
+          <Route path="/" element={<Login />} />
+          
+          {/* ✅ ย้ายหน้า Index เดิมไปที่ /home */}
+          <Route path="/home" element={<Index />} />
+          
           <Route path="/chat" element={<Chat />} />
           <Route path="/form-guide" element={<FormGuide />} />
           <Route path="*" element={<NotFound />} />
