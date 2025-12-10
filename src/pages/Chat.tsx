@@ -3,14 +3,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, GraduationCap, Home } from "lucide-react";
+import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar"; // ✅ Import กลับมาแล้ว
-import Footer from "@/components/Footer"; // ✅ Import กลับมาแล้ว
+import Navbar from "@/components/Navbar"; 
+import Footer from "@/components/Footer"; 
+import { useAuth } from "../AuthContext"; // ✅ Import useAuth เข้ามา
 
-// --- Inline Components ---
-
-// --- Main Chat Logic ---
+// --- Interfaces ---
 
 interface Source {
   doc: string;
@@ -28,6 +27,7 @@ const Chat = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation(); 
+  const { user } = useAuth(); // ✅ เรียกใช้ User Context
   
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,19 +44,36 @@ const Chat = () => {
     "ขอใบเกรด (Transcript)",
   ];
 
+  // ✅ 1. Load Messages จาก localStorage (เปลี่ยนจาก sessionStorage)
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
-      const saved = sessionStorage.getItem("chat_history");
+      const saved = localStorage.getItem("chat_history");
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
     }
   });
 
+  // ✅ 2. Load Draft ที่พิมพ์ค้างไว้
   useEffect(() => {
-    sessionStorage.setItem("chat_history", JSON.stringify(messages));
+    const savedDraft = localStorage.getItem("chat_input_draft");
+    if (savedDraft) {
+      setInput(savedDraft);
+    }
+  }, []);
+
+  // ✅ 3. Save Messages ลง localStorage เมื่อมีข้อความใหม่
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem("chat_history", JSON.stringify(messages));
+    }
     scrollToBottom();
   }, [messages]);
+
+  // ✅ 4. Save Draft ทันทีที่พิมพ์
+  useEffect(() => {
+    localStorage.setItem("chat_input_draft", input);
+  }, [input]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -64,9 +81,15 @@ const Chat = () => {
     }
   };
 
+  // ✅ 5. ฟังก์ชันล้างแชท (ลบทุกอย่างเกลี้ยง)
   const handleClearChat = () => {
     setMessages([]);
-    sessionStorage.removeItem("chat_history");
+    setInput("");
+    localStorage.removeItem("chat_history");
+    localStorage.removeItem("chat_input_draft");
+    toast({
+      description: "ล้างประวัติการสนทนาเรียบร้อย",
+    });
   };
 
   // ✅ Auto-send Logic
@@ -77,7 +100,6 @@ const Chat = () => {
       if (!lastMsg || lastMsg.content !== messageToSend) {
          handleSend(messageToSend);
       }
-      // ใช้ replaceState แบบนี้ปลอดภัยกับ HashRouter
       window.history.replaceState({}, document.title);
     }
   }, []);
@@ -125,7 +147,11 @@ const Chat = () => {
 
     const userMessage: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
+    
+    // ✅ เคลียร์ input และ Draft เมื่อส่งข้อความ
     setInput("");
+    localStorage.removeItem("chat_input_draft");
+    
     setLoading(true);
 
     try {
@@ -208,7 +234,6 @@ const Chat = () => {
                           {renderMessageContent(cleanContent)}
                         </div>
 
-                        {/* ✅ ปุ่มไปหน้าฟอร์ม (แก้ไข Path ให้ตรงกับ App.tsx) */}
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
                             <Button 

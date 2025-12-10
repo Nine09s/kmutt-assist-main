@@ -57,19 +57,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // ✅ 3. ปรับปรุงฟังก์ชัน Logout ให้กวาดล้างบาง
   const logout = () => {
-    // 3.1 ล้าง State
     setUser(null);
     
-    // 3.2 ล้าง LocalStorage หลัก
+    // 1. ลบข้อมูล User
     localStorage.removeItem('user_data');
     
-    // 3.3 ล้าง LocalStorage ของฟีเจอร์อื่นๆ (เช่น ฟอร์ม, แชท)
-    // ใส่ Key ทั้งหมดที่คุณเคยใช้เก็บข้อมูลลงไปตรงนี้
+    // 2. ลบข้อมูล Form
     localStorage.removeItem('form_guide_data'); 
-    localStorage.removeItem('chat_history'); 
     localStorage.removeItem('draft_form');
 
-    // 3.4 ล้าง Cache ของ React Query (สำคัญ! กันข้อมูลเก่าโผล่)
+    // 3. ✅ ลบข้อมูล Chat (ประวัติ + ข้อความที่พิมพ์ค้างไว้)
+    localStorage.removeItem('chat_history'); // ชื่อ Key ต้องตรงกับที่ใช้ใน Chat.tsx
+    localStorage.removeItem('chat_input_draft'); // ชื่อ Key สำหรับข้อความที่พิมพ์ค้าง
+
+    // 4. ล้าง Cache ของระบบ
     queryClient.clear(); 
   };
 
