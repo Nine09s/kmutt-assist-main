@@ -8,11 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Sparkles, FileText, Download, User, Hash, School, Calendar, 
-  RotateCcw, Phone, Mail, FileType, MapPin
+  RotateCcw, Phone, Mail, FileType, MapPin, Paperclip, Briefcase
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// ✅ Import จากไฟล์จริงของคุณ
 import Navbar from "@/components/Navbar"; 
 import Footer from "@/components/Footer"; 
 
@@ -27,19 +26,32 @@ type FieldConfig = {
 };
 
 const FORM_CONFIG: Record<string, FieldConfig[]> = {
-  "RO.01": [
-    { label: "เรื่องที่ต้องการร้องขอ", key: "request_subject", type: "text", placeholder: "เช่น ขอลงทะเบียนเรียนข้ามหลักสูตร", width: "full" },
-    { label: "เรียน (ผู้รับเรื่อง)", key: "recipient", type: "text", placeholder: "เช่น คณบดีคณะ...", width: "full" },
-    { label: "สาขาวิชา/ภาควิชา", key: "department", type: "text", placeholder: "เช่น วิศวกรรมคอมพิวเตอร์", width: "half" },
-    { label: "อาจารย์ที่ปรึกษา", key: "advisor_name", type: "text", placeholder: "เช่น อ.สมชาย ใจดี", width: "half" },
-    { label: "เกรดเฉลี่ยสะสม (GPAX)", key: "cumulative_gpa", type: "text", placeholder: "3.xx", width: "half" },
-    { label: "เกรดเฉลี่ยภาคล่าสุด (GPS)", key: "semester_gpa", type: "text", placeholder: "3.xx", width: "half" },
-    { label: "เบอร์โทรศัพท์", key: "student_tel", type: "text", placeholder: "08x-xxx-xxxx", width: "half", icon: Phone },
-    { label: "อีเมล", key: "student_email", type: "text", placeholder: "name.sur@mail.kmutt.ac.th", width: "half", icon: Mail },
-    { label: "รายละเอียดคำร้อง", key: "request_details", type: "textarea", placeholder: "อธิบายความประสงค์และเหตุผล...", width: "full" },
+  // ✅ RO.16 (ลาป่วย/ลากิจ)
+  "RO.16": [
+    { label: "เรียน (ผู้รับเรื่อง)", key: "recipient", type: "text", placeholder: "เช่น คณบดีคณะวิศวกรรมศาสตร์", width: "full", icon: User },
+    { label: "ลาเนื่องจากสาเหตุ", key: "leave_reason", type: "textarea", placeholder: "ระบุอาการป่วย หรือธุระ...", width: "full" },
+    { label: "ตั้งแต่วันที่", key: "date_from", type: "text", placeholder: "10 มกราคม 2568", width: "half", icon: Calendar },
+    { label: "ถึงวันที่", key: "date_to", type: "text", placeholder: "12 มกราคม 2568", width: "half", icon: Calendar },
+    { label: "รวมจำนวนวัน (วัน)", key: "leave_days", type: "number", width: "third" },
+    { label: "เบอร์โทรศัพท์", key: "student_tel", type: "text", width: "third", icon: Phone },
+    { label: "อีเมล", key: "student_email", type: "text", width: "third", icon: Mail },
+    { label: "สิ่งที่แนบมาด้วย (1)", key: "enclosure_1", type: "text", placeholder: "เช่น ใบรับรองแพทย์", width: "half", icon: Paperclip },
+    { label: "สิ่งที่แนบมาด้วย (2)", key: "nclosure_2", type: "text", placeholder: "เอกสารอื่นๆ (ถ้ามี)", width: "half", icon: Paperclip },
+    { label: "อาจารย์ที่ปรึกษา", key: "advisor_name", type: "text", placeholder: "ชื่อ-สกุล อาจารย์", width: "full", icon: User },
   ],
+  // ✅ RO.13 (ลาออก)
+  "RO.13": [
+    { label: "เรียน (ผู้รับเรื่อง)", key: "recipient", type: "text", placeholder: "เช่น อธิการบดี", width: "full", icon: User },
+    { label: "มีความประสงค์ขอลาออกเนื่องจาก", key: "reason_other_details", type: "textarea", placeholder: "อธิบายเหตุผล...", width: "full" },
+    { label: "กรณีลาออกเพื่อไปศึกษาต่อที่อื่น (ระบุ)", key: "reason_study_at_location", type: "text", placeholder: "ระบุชื่อสถาบัน / คณะ (ถ้ามี)", width: "full", icon: School },
+    { label: "สิ่งที่แนบมาด้วย", key: "enclosure_2", type: "text", placeholder: "เช่น ใบยินยอมผู้ปกครอง", width: "full", icon: Paperclip },
+    { label: "เบอร์โทรศัพท์", key: "student_tel", type: "text", width: "half", icon: Phone },
+    { label: "อีเมล", key: "student_email", type: "text", width: "half", icon: Mail },
+    { label: "อาจารย์ที่ปรึกษา", key: "advisor_name", type: "text", width: "full", icon: User },
+  ],
+  // ✅ RO.03 (หนังสือรับรองผู้ปกครอง) - นำกลับมาแล้วครับ
   "RO.03": [
-    { label: "คำรับรอง (เรื่อง)", key: "request_subject", type: "text", placeholder: "เช่น ขอลาพักการศึกษา", width: "full" },
+    { label: "คำรับรอง (เรื่อง)", key: "request_subject", type: "text", placeholder: "เช่น ขอลงทะเบียนเรียนข้ามหลักสูตร", width: "full" },
     { label: "บ้านเลขที่", key: "address_no", type: "text", width: "third", icon: MapPin },
     { label: "หมู่ที่", key: "address_moo", type: "text", width: "third" },
     { label: "ซอย", key: "address_soi", type: "text", width: "third" },
@@ -52,19 +64,13 @@ const FORM_CONFIG: Record<string, FieldConfig[]> = {
     { label: "เบอร์มือถือ", key: "phone_mobile", type: "text", width: "half", icon: Phone },
     { label: "ข้อความรับรอง", key: "Parental_certification", type: "textarea", placeholder: "ข้าพเจ้ายินยอมให้...", width: "full" },
   ],
-  "RO.12": [
-    { label: "รหัสวิชา", key: "course_code", type: "text", placeholder: "CSC102", width: "half" },
-    { label: "ชื่อวิชา", key: "course_name", type: "text", placeholder: "Computer Programming", width: "half" },
-    { label: "กลุ่มเรียน (Section)", key: "section", type: "text", placeholder: "A", width: "half" },
-    { label: "เหตุผลที่ถอน", key: "reason", type: "textarea", placeholder: "ระบุเหตุผล...", width: "full" },
-  ],
-  "RO.16": [
-    { label: "ประเภทการลา", key: "leave_type", type: "text", placeholder: "ลาป่วย หรือ ลากิจ", width: "full" },
-    { label: "ตั้งแต่วันที่", key: "start_date", type: "text", placeholder: "10 มกราคม 2568", width: "half" },
-    { label: "ถึงวันที่", key: "end_date", type: "text", placeholder: "12 มกราคม 2568", width: "half" },
-    { label: "จำนวนวัน", key: "total_days", type: "number", width: "third" },
-    { label: "เบอร์โทรศัพท์", key: "student_tel", type: "text", width: "half", icon: Phone },
-    { label: "เนื่องจากสาเหตุ", key: "reason", type: "textarea", placeholder: "ระบุอาการป่วย หรือธุระ...", width: "full" },
+  // ✅ RO.01 (ทั่วไป)
+  "RO.01": [
+    { label: "เรื่องที่ต้องการร้องขอ", key: "request_subject", type: "text", placeholder: "เช่น ขอลงทะเบียนเรียนข้ามหลักสูตร", width: "full" },
+    { label: "เรียน (ผู้รับเรื่อง)", key: "recipient", type: "text", placeholder: "เช่น คณบดีคณะ...", width: "full" },
+    { label: "สาขาวิชา/ภาควิชา", key: "department", type: "text", placeholder: "เช่น วิศวกรรมคอมพิวเตอร์", width: "half" },
+    { label: "อาจารย์ที่ปรึกษา", key: "advisor_name", type: "text", placeholder: "เช่น อ.สมชาย ใจดี", width: "half" },
+    { label: "รายละเอียดคำร้อง", key: "request_details", type: "textarea", placeholder: "อธิบายความประสงค์และเหตุผล...", width: "full" },
   ],
 };
 
@@ -89,9 +95,10 @@ const FormGuide = () => {
         faculty: "",
         year: "",
         formType: "",
+        department: "",
       };
     } catch (e) {
-      return { studentId: "", name: "", faculty: "", year: "", formType: "" };
+      return { studentId: "", name: "", faculty: "", year: "", formType: "", department: "" };
     }
   });
 
@@ -106,16 +113,12 @@ const FormGuide = () => {
 
   const forms = [
     { id: "RO.01", name: "คำร้องทั่วไป (General Request)" },
-    { id: "RO.03", name: "หนังสือรับรองของผู้ปกครอง" },
-    { id: "RO.04", name: "ใบมอบฉันทะ" },
-    { id: "RO.08", "name": "คำร้องขอคืนเงินค่าลงทะเบียน" },
-    { id: "RO.12", "name": "คำร้องขอลาพักการศึกษา / ถอน" },
-    { id: "RO.16", "name": "คำร้องขอลาป่วย/ลากิจ" },
-    { id: "RO.18", "name": "คำร้องลงทะเบียนหน่วยกิต ต่ำ/เกิน" },
-    { id: "RO.22", "name": "คำร้องขอผ่อนผันค่าเทอม" },
+    { id: "RO.03", name: "หนังสือรับรองของผู้ปกครอง" }, // เพิ่มกลับมาแล้ว
+    { id: "RO.13", name: "คำร้องขอลาออก (Resignation)" },
+    { id: "RO.16", name: "คำร้องขอลาป่วย/ลากิจ (Sick/Business Leave)" },
   ];
 
-  // Auto-Save to LocalStorage
+  // Auto-Save
   useEffect(() => {
     localStorage.setItem("form_guide_data", JSON.stringify(formData));
   }, [formData]);
@@ -139,42 +142,52 @@ const FormGuide = () => {
         formType: data.form_id || prev.formType 
       }));
 
+      // Mapping ข้อมูลจาก AI เข้า Field ของ Form ใหม่
       const aiDraft: Record<string, string> = {};
-      if (data.draft_reason) aiDraft["reason"] = data.draft_reason;
-      if (data.draft_reason) aiDraft["request_details"] = data.draft_reason;
-      if (data.draft_reason) aiDraft["Parental_certification"] = data.draft_reason;
-      if (data.draft_subject) aiDraft["request_subject"] = data.draft_subject;
       
-      setDynamicData(prev => ({ ...prev, ...aiDraft }));
+      // Map ทั่วไป
+      if (data.draft_reason) {
+        aiDraft["leave_reason"] = data.draft_reason; // RO.16
+        aiDraft["reason_other_details"] = data.draft_reason; // RO.13
+        aiDraft["request_details"] = data.draft_reason; // RO.01
+        aiDraft["Parental_certification"] = data.draft_reason; // RO.03
+      }
+      
+      if (data.draft_subject) {
+        aiDraft["request_subject"] = data.draft_subject; // RO.01, RO.03
+      }
 
+      // Map วันที่
+      if (data.start_date) aiDraft["date_from"] = data.start_date;
+      if (data.end_date) aiDraft["date_to"] = data.end_date;
+
+      setDynamicData(prev => ({ ...prev, ...aiDraft }));
       setIsAiFilled(true);
-      
-      // ล้าง state เพื่อไม่ให้ toast เด้งซ้ำ
       window.history.replaceState({}, document.title);
       
       toast({
         title: "✨ AI ช่วยกรอกข้อมูลให้แล้ว!",
-        description: "กรุณาตรวจสอบรายละเอียดเพิ่มเติมด้านล่าง",
+        description: "ตรวจสอบข้อมูลสำหรับ " + (data.form_id || "ฟอร์ม"),
         className: "bg-green-50 border-green-200 text-green-800",
       });
     }
   }, [location, toast]);
 
-  // ฟังก์ชันล้างข้อมูล
+  // Clear Functions
   const clearPersonalInfo = () => {
-    setFormData(prev => ({
-      ...prev,
-      studentId: "",
-      name: "",
-      faculty: "",
-      year: "",
-    }));
+    setFormData(prev => ({ ...prev, studentId: "", name: "", faculty: "", year: "", department: "" }));
     toast({ description: "ล้างข้อมูลนักศึกษาแล้ว" });
   };
 
   const clearFormDetails = () => {
     setDynamicData({});
     toast({ description: "ล้างรายละเอียดฟอร์มแล้ว" });
+  };
+
+  // ✅ ฟังก์ชันช่วยจัดรูปแบบรหัสนักศึกษา (เว้นวรรค)
+  const formatStudentIdForDoc = (id: string) => {
+    if (!id) return "";
+    return id.split("").join("  "); 
   };
 
   const handleGenerateDoc = async () => {
@@ -184,7 +197,24 @@ const FormGuide = () => {
     }
 
     setLoading(true);
-    const finalPayload = { ...formData, ...dynamicData };
+
+    const now = new Date();
+    const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    
+    const finalPayload = { 
+      ...formData, 
+      ...dynamicData,
+      student_name: formData.name,
+      class_level: formData.year,
+      // ส่งรหัสนักศึกษาแบบเว้นวรรค
+      student_id_spaced: formatStudentIdForDoc(formData.studentId),
+      // ส่งวันที่แยก
+      date_day: now.getDate().toString(),
+      date_month: thaiMonths[now.getMonth()],
+      date_year: (now.getFullYear() + 543).toString(),
+    };
+
+    console.log("📤 Sending Payload:", finalPayload);
 
     try {
         const response = await fetch(`${API_URL}/generate-form`, {
@@ -199,7 +229,7 @@ const FormGuide = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Filled_${formData.formType}_${formData.studentId}.docx`;
+        a.download = `${formData.formType}_${formData.studentId}.docx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -213,7 +243,7 @@ const FormGuide = () => {
         console.error("Error:", error);
         toast({
             title: "เกิดข้อผิดพลาด",
-            description: "ไม่สามารถสร้างเอกสารได้",
+            description: "ตรวจสอบ Server หรือ Internet Connection",
             variant: "destructive",
         });
     } finally {
@@ -267,8 +297,6 @@ const FormGuide = () => {
                     value={formData.formType} 
                     onValueChange={(val) => {
                       setFormData({...formData, formType: val});
-                      // ไม่ล้าง dynamicData อัตโนมัติ (เผื่อผู้ใช้เปลี่ยนใจกลับมา)
-                      // หรือถ้าอยากล้างให้ uncomment: setDynamicData({});
                     }}
                   >
                     <SelectTrigger className="h-12 rounded-xl border-slate-200 focus:ring-orange-500 bg-white">
@@ -307,6 +335,9 @@ const FormGuide = () => {
                   <div>
                     <Label className="flex items-center gap-2 text-slate-600 mb-1"><Hash className="w-4 h-4" /> รหัสนักศึกษา</Label>
                     <Input value={formData.studentId} onChange={(e) => setFormData({...formData, studentId: e.target.value})} className="h-11 rounded-xl" placeholder="6xxxxxxxxxx" />
+                    <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                      *ระบบจะจัดรูปแบบเว้นวรรคให้อัตโนมัติเมื่อสร้างไฟล์
+                    </p>
                   </div>
                   <div>
                     <Label className="flex items-center gap-2 text-slate-600 mb-1"><User className="w-4 h-4" /> ชื่อ-นามสกุล</Label>
@@ -315,6 +346,10 @@ const FormGuide = () => {
                   <div>
                     <Label className="flex items-center gap-2 text-slate-600 mb-1"><School className="w-4 h-4" /> คณะ/ภาควิชา</Label>
                     <Input value={formData.faculty} onChange={(e) => setFormData({...formData, faculty: e.target.value})} className="h-11 rounded-xl" placeholder="วิศวกรรมศาสตร์" />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 text-slate-600 mb-1"><Briefcase className="w-4 h-4" /> สาขาวิชา</Label>
+                    <Input value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} className="h-11 rounded-xl" placeholder="วิศวกรรมคอมพิวเตอร์" />
                   </div>
                   <div>
                     <Label className="flex items-center gap-2 text-slate-600 mb-1"><Calendar className="w-4 h-4" /> ชั้นปี</Label>
