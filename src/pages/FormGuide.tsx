@@ -126,6 +126,13 @@ const FormGuide = () => {
     localStorage.setItem("form_guide_dynamic", JSON.stringify(dynamicData));
   }, [dynamicData]);
 
+  const extractYearNumber = (text: any): string => {
+    if (!text) return "";
+    const str = String(text);
+    const match = str.match(/\d+/); // หาตัวเลขตัวแรกที่เจอ
+    return match ? match[0] : "";   // คืนค่า "1"
+  };
+
   // Effect: รับข้อมูลจาก AI
   useEffect(() => {
     if (location.state) {
@@ -137,7 +144,7 @@ const FormGuide = () => {
         studentId: data.student_id || prev.studentId,
         name: data.name || prev.name,
         faculty: data.faculty || prev.faculty,
-        year: data.year || prev.year,
+        year: extractYearNumber(data.year) || prev.year,
         formType: data.form_id || prev.formType,
         department: data.department || data.major || prev.department 
       }));
