@@ -237,13 +237,6 @@ const FormGuide = () => {
           
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <Button 
-                variant="ghost" 
-                className="pl-0 text-slate-500 hover:text-orange-600 -ml-2 mb-2" 
-                onClick={() => navigate("/")}
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" /> กลับไปแชท
-              </Button>
               <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
                 <FileText className="h-8 w-8 text-orange-500" />
                 ระบบสร้างคำร้องอัตโนมัติ

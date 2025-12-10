@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, FileText, Menu, X, LogOut, Home } from "lucide-react"; // ✅ เพิ่มไอคอน
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "../AuthContext"
 
 const Navbar = () => {
   const location = useLocation();
@@ -10,18 +11,25 @@ const Navbar = () => {
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const { logout } = useAuth();
+
   const isActive = (path: string) => location.pathname === path;
 
-  // ✅ ฟังก์ชันออกจากระบบ
+  // ✅ 3. ปรับปรุงฟังก์ชัน Logout ให้ Clear ทุกอย่าง
   const handleLogout = () => {
-    // ล้างข้อมูล (ถ้ามี)
-    // localStorage.removeItem("form_guide_data"); 
+    // 3.1 ล้างข้อมูล Auth หลัก (State & localStorage: 'user_data')
+    // ฟังก์ชันนี้มาจาก AuthContext ที่เราเขียนไว้ มันจะจัดการ set user = null และลบ storage ให้เอง
+    logout(); 
+
+    // 3.2 ล้างข้อมูลเฉพาะของฟีเจอร์นี้ (ตามที่คุณต้องการ)
+    localStorage.removeItem("form_guide_data"); 
     
+    // 3.3 แจ้งเตือน UI
     toast({
       description: "ออกจากระบบเรียบร้อยแล้ว",
     });
     
-    // กลับไปหน้า Login
+    // 3.4 กลับไปหน้า Login
     navigate("/");
   };
 
