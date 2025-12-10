@@ -105,17 +105,27 @@ const Chat = () => {
   }, []);
 
   const parseBotMessage = (content: string) => {
-  const regex = /\[\[FORM_DATA: ([\s\S]*?)\]\]/; 
+  // Regex จับทุกอย่างที่อยู่ใน [[FORM_DATA: ... ]]
+  const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/;
   const match = content.match(regex);
-  
+
   if (match) {
     try {
-      const jsonStr = match[1];
+      let jsonStr = match[1].trim();
+
+      // 1. ลบ Markdown Code Block (ถ้า AI เผลอใส่มา)
+      jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
+
+      // 2. ลบปีกกาที่เกินมา (เผื่อ AI ส่ง {{ }})
+      if (jsonStr.startsWith("{{")) jsonStr = jsonStr.slice(1, -1);
+
       const formData = JSON.parse(jsonStr);
-      const cleanContent = content.replace(regex, "").trim(); 
+      const cleanContent = content.replace(regex, "").trim();
+
       return { cleanContent, formData };
     } catch (e) {
-      console.error("JSON Parse Error:", e);
+      console.error("❌ JSON Parse Error:", e);
+      // ถ้าพังจริงๆ ก็ปล่อยผ่าน (ปุ่มจะไม่ขึ้น ดีกว่าแอปขาว)
     }
   }
   return { cleanContent: content, formData: null };
@@ -237,7 +247,7 @@ const Chat = () => {
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
                             <Button 
-                              onClick={() => navigate("/form-guide", { state: formData })}
+                              onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5" />
