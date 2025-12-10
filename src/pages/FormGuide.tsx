@@ -187,7 +187,7 @@ const FormGuide = () => {
   // ✅ ฟังก์ชันช่วยจัดรูปแบบรหัสนักศึกษา (เว้นวรรค)
   const formatStudentIdForDoc = (id: string) => {
     if (!id) return "";
-    return id; // ส่งค่า "68070501044" ไปเลย
+    return id.split("").join("  "); 
   };
 
   const handleGenerateDoc = async () => {
