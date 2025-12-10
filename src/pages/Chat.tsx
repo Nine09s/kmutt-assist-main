@@ -105,21 +105,21 @@ const Chat = () => {
   }, []);
 
   const parseBotMessage = (content: string) => {
-    const regex = /\[\[FORM_DATA: (.*?)\]\]/;
-    const match = content.match(regex);
-    
-    if (match) {
-      try {
-        const jsonStr = match[1];
-        const formData = JSON.parse(jsonStr);
-        const cleanContent = content.replace(regex, "").trim(); 
-        return { cleanContent, formData };
-      } catch (e) {
-        console.error("JSON Parse Error:", e);
-      }
+  const regex = /\[\[FORM_DATA: ([\s\S]*?)\]\]/; 
+  const match = content.match(regex);
+  
+  if (match) {
+    try {
+      const jsonStr = match[1];
+      const formData = JSON.parse(jsonStr);
+      const cleanContent = content.replace(regex, "").trim(); 
+      return { cleanContent, formData };
+    } catch (e) {
+      console.error("JSON Parse Error:", e);
     }
-    return { cleanContent: content, formData: null };
-  };
+  }
+  return { cleanContent: content, formData: null };
+};
 
   const renderMessageContent = (text: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;

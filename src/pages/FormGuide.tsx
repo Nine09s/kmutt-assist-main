@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom"; // ❌ ไม่ต้องมี MemoryRouter
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Sparkles, FileText, Download, User, Hash, School, Calendar, 
-  ArrowLeft, CheckCircle2, MapPin, Phone, Mail, FileType, 
-  Trash2, RotateCcw 
+  RotateCcw, Phone, Mail, FileType, MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // ✅ Import จากไฟล์จริงของคุณ
 import Navbar from "@/components/Navbar"; 
 import Footer from "@/components/Footer"; 
-
-const Badge = ({ children, className }: { children: React.ReactNode, className?: string }) => (
-  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>
-    {children}
-  </span>
-);
 
 // --- CONFIGURATION ---
 type FieldConfig = {
