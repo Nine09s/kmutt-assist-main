@@ -264,7 +264,7 @@ const Chat = () => {
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
                             <Button 
-                              onClick={() => navigate("/form-guide", { state: formData })}
+                              onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5" />
