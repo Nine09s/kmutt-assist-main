@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQueryClient } from "@tanstack/react-query";
 
 // 1. กำหนด Type ของข้อมูล User (ปรับ field ตามจริงได้เลยครับ)
 interface User {
@@ -32,14 +33,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   // 1. Check Login
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     const checkLogin = () => {
       const storedUser = localStorage.getItem('user_data');
       if (storedUser) {
         try {
-          // Parse และกำหนด Type
-          const parsedUser: User = JSON.parse(storedUser);
-          setUser(parsedUser);
+          setUser(JSON.parse(storedUser));
         } catch (error) {
           localStorage.removeItem('user_data');
         }
@@ -49,16 +50,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     checkLogin();
   }, []);
 
-  // 2. Login
   const login = (userData: User) => {
     setUser(userData);
     localStorage.setItem('user_data', JSON.stringify(userData));
   };
 
-  // 3. Logout
+  // ✅ 3. ปรับปรุงฟังก์ชัน Logout ให้กวาดล้างบาง
   const logout = () => {
+    // 3.1 ล้าง State
     setUser(null);
+    
+    // 3.2 ล้าง LocalStorage หลัก
     localStorage.removeItem('user_data');
+    
+    // 3.3 ล้าง LocalStorage ของฟีเจอร์อื่นๆ (เช่น ฟอร์ม, แชท)
+    // ใส่ Key ทั้งหมดที่คุณเคยใช้เก็บข้อมูลลงไปตรงนี้
+    localStorage.removeItem('form_guide_data'); 
+    localStorage.removeItem('chat_history'); 
+    localStorage.removeItem('draft_form');
+
+    // 3.4 ล้าง Cache ของ React Query (สำคัญ! กันข้อมูลเก่าโผล่)
+    queryClient.clear(); 
   };
 
   return (
@@ -68,7 +80,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   );
 };
 
-// Custom Hook พร้อม Type Safety
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
