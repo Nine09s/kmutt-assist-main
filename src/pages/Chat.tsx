@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight } from "lucide-react";
+import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, Sparkles, // 👈 เพิ่มตัวนี้ (สำหรับไอคอนวิ้งๆ หน้า Smart Draft)
+ArrowUp   // 👈 เพิ่มตัวนี้ (สำหรับปุ่ม Back to Top)
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar"; 
 import Footer from "@/components/Footer"; 
@@ -35,6 +37,8 @@ const normalizeFormData = (rawData: any) => {
     name: rawData.name || "",
     faculty: rawData.faculty || "",
     form_id: rawData.form_id || "",
+    draft_reason: rawData.draft_reason || "",
+    draft_subject: rawData.draft_subject || "",
   };
 };
 
@@ -47,6 +51,7 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 👇 URL ของ Railway
@@ -96,6 +101,21 @@ const Chat = () => {
     }
   };
 
+  const scrollToTop = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    if (scrollTop > 300) {
+      setShowScrollTop(true);
+    } else {
+      setShowScrollTop(false);
+    }
+  };
+  
   // ✅ 5. ฟังก์ชันล้างแชท (ลบทุกอย่างเกลี้ยง)
   const handleClearChat = () => {
     setMessages([]);
@@ -231,7 +251,7 @@ const Chat = () => {
           </div>
 
           <Card className="flex-1 flex flex-col shadow-lg border border-slate-200 overflow-hidden rounded-xl bg-white">
-            <div ref={scrollRef} className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth">
+            <div ref={scrollRef} onScroll={handleScroll} className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center opacity-60 space-y-4">
                   <div className="bg-orange-100 p-6 rounded-full animate-pulse">
@@ -263,6 +283,19 @@ const Chat = () => {
 
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
+                            {/* 👇👇👇 เริ่มแทรกตรงนี้ 👇👇👇 */}
+                             {formData.draft_reason && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2 text-xs text-green-800 shadow-sm">
+                                    <div className="flex items-center gap-1 font-semibold mb-2 text-green-700">
+                                        <Sparkles className="w-3 h-3 fill-green-500 text-green-600" /> 
+                                        AI ร่างคำร้องให้:
+                                    </div>
+                                    <p className="italic font-serif leading-relaxed text-slate-700 bg-white/50 p-2 rounded border border-green-100">
+                                        "{formData.draft_reason}"
+                                    </p>
+                                </div>
+                             )}
+                             {/* 👆👆👆 จบการแทรก 👆👆👆 */}
                             <Button 
                               onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
@@ -317,6 +350,16 @@ const Chat = () => {
               )}
             </div>
 
+            {showScrollTop && (
+              <Button
+                onClick={scrollToTop}
+                className="absolute bottom-24 right-6 rounded-full w-10 h-10 p-0 shadow-lg bg-slate-600 hover:bg-slate-700 text-white animate-in fade-in zoom-in duration-300 z-10 opacity-80 hover:opacity-100"
+                title="เลื่อนขึ้นบนสุด"
+              >
+                <ArrowUp className="h-5 w-5" />
+              </Button>
+            )}
+            
             <div className="p-4 bg-white border-t border-slate-100 shrink-0">
               <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
                 {quickQuestions.map((q) => (
