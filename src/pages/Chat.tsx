@@ -129,8 +129,8 @@ const Chat = () => {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
-    // Show button if scrolled down more than 300px
-    if (scrollTop > 300) {
+    // ปรับให้ปุ่มขึ้นง่ายขึ้น (เลื่อนลงมาแค่ 100px ก็โชว์เลย)
+    if (scrollTop > 100) {
       setShowScrollTop(true);
     } else {
       setShowScrollTop(false);
@@ -214,7 +214,7 @@ const Chat = () => {
 
   const quickQuestions = [
     "ลาป่วยต้องทำยังไง?",
-    "ขอลากิจหน่อย",
+    "ขอลาพักการศึกษา",
     "อยากถอนรายวิชา",
     "ขอใบรับรองเกรด",
     "ติดต่อห้องทะเบียน"
@@ -310,7 +310,7 @@ const Chat = () => {
                             <Button 
                                 size="sm" 
                                 className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm h-9 text-xs"
-                                onClick={() => navigate("/form-result", { 
+                                onClick={() => navigate("/form-guide", { 
                                   state: { 
                                     ...message.formData, 
                                     // Ensure department is populated
@@ -368,11 +368,11 @@ const Chat = () => {
               )}
             </div>
 
-            {/* Scroll to Top Button (Floating) */}
+            {/* ⬆️ Scroll to Top Button (ลอยอยู่มุมขวาล่างของ Card) */}
             {showScrollTop && (
               <Button
                 onClick={scrollToTop}
-                className="absolute bottom-24 right-6 rounded-full w-10 h-10 p-0 shadow-lg bg-slate-600 hover:bg-slate-700 text-white animate-in fade-in zoom-in duration-300 z-10 opacity-90 hover:opacity-100"
+                className="absolute bottom-28 right-6 rounded-full w-10 h-10 p-0 shadow-xl bg-slate-700 hover:bg-slate-800 text-white animate-in fade-in zoom-in duration-300 z-50 opacity-90 hover:opacity-100 border border-slate-500"
                 title="เลื่อนขึ้นบนสุด"
               >
                 <ArrowUp className="h-5 w-5" />
