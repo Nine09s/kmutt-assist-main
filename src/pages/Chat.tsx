@@ -65,6 +65,14 @@ const Chat = () => {
   // ใช้ Hardcoded URL เพื่อความชัวร์ในการ Build
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
+  useEffect(() => {
+    // เช็คว่า user เป็น null หรือไม่ (ถ้า null แปลว่ายังไม่ล็อกอิน)
+    if (!user) {
+      console.log("🚫 Access Denied: Redirecting to Login");
+      navigate("/", { replace: true }); // replace: true เพื่อไม่ให้กด Back กลับมาได้
+    }
+  }, [user, navigate]);
+  
   const quickQuestions = [
     "ขอลาป่วย",
     "ขอลาพักการศึกษา",
@@ -234,7 +242,11 @@ const Chat = () => {
       setLoading(false);
     }
   };
-
+  
+  if (!user) {
+    return null; 
+  }
+  
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       <Navbar />
