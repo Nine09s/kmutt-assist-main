@@ -24,12 +24,10 @@ interface Message {
 }
 
 const normalizeFormData = (rawData: any) => {
-  if (!rawData) return null;
+  if (!rawData || typeof rawData !== 'object') return null; // ดัก Null/Undefined/String
   return {
     ...rawData,
-    // จัดการชื่อตัวแปรให้ตรงกัน
     department: rawData.department || rawData.major || "",
-    // ลบเว้นวรรคในรหัสนักศึกษา (เช่น "6 8 0" -> "680")
     student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, '') : "",
     name: rawData.name || "",
     faculty: rawData.faculty || "",
@@ -137,6 +135,57 @@ const Chat = () => {
     }
   }, []);
 
+  // ✅ 2. Parser Safe Guard: ป้องกันแอปขาวเมื่อข้อความผิดปกติ
+  const parseBotMessage = (content: string) => {
+    if (!content) return { cleanContent: "", formData: null }; // ดัก Null
+
+    const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/; 
+    const match = content.match(regex);
+    
+    if (match) {
+      try {
+        let jsonStr = match[1].trim();
+        jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
+        if (jsonStr.startsWith("{{") && jsonStr.endsWith("}}")) {
+             jsonStr = jsonStr.slice(1, -1);
+        }
+        
+        const rawData = JSON.parse(jsonStr);
+        const formData = normalizeFormData(rawData);
+        const cleanContent = content.replace(regex, "").trim(); 
+        return { cleanContent, formData };
+      } catch (e) {
+        console.error("JSON Parse Error (Ignore):", e);
+        // ถ้า Parse ไม่ผ่าน ให้แสดงข้อความดิบๆ ไปเลย ดีกว่าแอปพัง
+        return { cleanContent: content, formData: null };
+      }
+    }
+    return { cleanContent: content, formData: null };
+  };
+
+  // ✅ 3. Render Content Safe Guard
+  const renderMessageContent = (text: string) => {
+    if (!text) return null; // ดัก Null
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-600 underline break-all hover:text-orange-800 font-medium"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const parseBotMessage = (content: string) => {
     const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/; 
     const match = content.match(regex);
@@ -205,6 +254,13 @@ const Chat = () => {
       if (!res.ok) throw new Error("Server error");
 
       const data = await res.json();
+
+      // ✅ 4. API Response Safe Guard: ถ้าไม่มี reply ให้ใส่ข้อความกันตาย
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: data.reply || "ขออภัยครับ ระบบประมวลผลผิดพลาด (No Reply Data)",
+        sources: data.sources || [],
+      };
 
       const assistantMessage: Message = {
         role: "assistant",
