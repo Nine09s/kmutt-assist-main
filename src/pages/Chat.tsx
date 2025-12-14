@@ -3,8 +3,29 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, Menu, User as UserIcon, Bot, Sparkles, ArrowUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// ✅ รวม Import Icons ให้ครบ (ทั้งแบบพื้นฐาน และแบบที่ใช้ใน Smart Draft / To Top)
+import { 
+  Send, 
+  FileText, 
+  ChevronDown, 
+  ChevronUp, 
+  ExternalLink, 
+  Trash2, 
+  MessageSquare, 
+  ArrowRight, 
+  Menu, 
+  User as UserIcon, 
+  Bot, 
+  Sparkles, 
+  ArrowUp 
+} from "lucide-react";
+
+// ✅ Import Component ของจริง (ตามที่คุณต้องการ)
+import Navbar from "@/components/Navbar"; 
+import Footer from "@/components/Footer"; 
+import { useAuth } from "../AuthContext";
 
 // --- Interfaces ---
 
