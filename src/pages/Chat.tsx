@@ -3,15 +3,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, Sparkles, // 👈 เพิ่มตัวนี้ (สำหรับไอคอนวิ้งๆ หน้า Smart Draft)
-ArrowUp   // 👈 เพิ่มตัวนี้ (สำหรับปุ่ม Back to Top)
+import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight, Sparkles, 
+ArrowUp
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar"; 
 import Footer from "@/components/Footer"; 
-import { useAuth } from "../AuthContext"; // ✅ Import useAuth เข้ามา
-
-// --- Interfaces ---
+import { useAuth } from "../AuthContext";
 
 interface Source {
   doc: string;
@@ -29,11 +27,8 @@ const normalizeFormData = (rawData: any) => {
   if (!rawData) return null;
   return {
     ...rawData,
-    // จัดการ Map ตัวแปรที่ชื่อไม่ตรงกัน
     department: rawData.department || rawData.major || "",
-    // ล้าง format รหัสนักศึกษาให้เป็นตัวเลขล้วน
     student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, '') : "",
-    // ใส่ค่า default กัน error
     name: rawData.name || "",
     faculty: rawData.faculty || "",
     form_id: rawData.form_id || "",
@@ -46,7 +41,7 @@ const Chat = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation(); 
-  const { user } = useAuth(); // ✅ เรียกใช้ User Context
+  const { user } = useAuth();
   
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,7 +49,6 @@ const Chat = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 👇 URL ของ Railway
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
   const quickQuestions = [
@@ -64,7 +58,6 @@ const Chat = () => {
     "ขอใบเกรด (Transcript)",
   ];
 
-  // ✅ 1. Load Messages จาก localStorage (เปลี่ยนจาก sessionStorage)
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const saved = localStorage.getItem("chat_history");
@@ -74,7 +67,6 @@ const Chat = () => {
     }
   });
 
-  // ✅ 2. Load Draft ที่พิมพ์ค้างไว้
   useEffect(() => {
     const savedDraft = localStorage.getItem("chat_input_draft");
     if (savedDraft) {
@@ -82,7 +74,6 @@ const Chat = () => {
     }
   }, []);
 
-  // ✅ 3. Save Messages ลง localStorage เมื่อมีข้อความใหม่
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem("chat_history", JSON.stringify(messages));
@@ -90,10 +81,27 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  // ✅ 4. Save Draft ทันทีที่พิมพ์
   useEffect(() => {
     localStorage.setItem("chat_input_draft", input);
   }, [input]);
+
+  // Ensure the user is authenticated; otherwise, redirect to the login page.
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (user && location.state && location.state.autoSend) {
+      const messageToSend = location.state.autoSend;
+      const lastMsg = messages[messages.length - 1];
+      if (!lastMsg || lastMsg.content !== messageToSend) {
+        handleSend(messageToSend);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [user, location.state, messages]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -109,14 +117,13 @@ const Chat = () => {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
-    if (scrollTop > 300) {
+    if (scrollTop > 300 && !showScrollTop) {
       setShowScrollTop(true);
-    } else {
+    } else if (scrollTop <= 300 && showScrollTop) {
       setShowScrollTop(false);
     }
   };
   
-  // ✅ 5. ฟังก์ชันล้างแชท (ลบทุกอย่างเกลี้ยง)
   const handleClearChat = () => {
     setMessages([]);
     setInput("");
@@ -127,18 +134,6 @@ const Chat = () => {
     });
   };
 
-  // ✅ Auto-send Logic
-  useEffect(() => {
-    if (location.state && location.state.autoSend) {
-      const messageToSend = location.state.autoSend;
-      const lastMsg = messages[messages.length - 1];
-      if (!lastMsg || lastMsg.content !== messageToSend) {
-         handleSend(messageToSend);
-      }
-      window.history.replaceState({}, document.title);
-    }
-  }, []);
-
   const parseBotMessage = (content: string) => {
     const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/; 
     const match = content.match(regex);
@@ -146,17 +141,14 @@ const Chat = () => {
     if (match) {
       try {
         let jsonStr = match[1].trim();
-        
-        // จัดการกรณี AI ส่ง Markdown json
+
         jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
 
-        // จัดการกรณี AI ส่งปีกกา 2 ชั้น {{ }}
         if (jsonStr.startsWith("{{") && jsonStr.endsWith("}}")) {
-             jsonStr = jsonStr.slice(1, -1);
+          jsonStr = jsonStr.slice(1, -1);
         }
         
         const rawData = JSON.parse(jsonStr);
-        // แปลงข้อมูลให้พร้อมใช้ทันที
         const formData = normalizeFormData(rawData);
         
         const cleanContent = content.replace(regex, "").trim(); 
@@ -194,11 +186,8 @@ const Chat = () => {
 
     const userMessage: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
-    
-    // ✅ เคลียร์ input และ Draft เมื่อส่งข้อความ
     setInput("");
-    localStorage.removeItem("chat_input_draft");
-    
+    localStorage.removeItem("chat_input_draft");    
     setLoading(true);
 
     try {
@@ -237,7 +226,6 @@ const Chat = () => {
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col h-[calc(100vh-130px)]">
         <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
-          
           <div className="flex justify-between items-center mb-4 shrink-0 px-2">
             <div>
               <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -245,11 +233,12 @@ const Chat = () => {
               </h1>
               <p className="text-xs text-slate-500">ถามเรื่องทะเบียน เอกสาร คำร้อง ได้ตลอด 24 ชม.</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleClearChat} className="text-slate-400 hover:text-red-500 hover:bg-red-50">
+            <Button 
+              variant="ghost" size="sm" onClick={handleClearChat} 
+              className="text-slate-400 hover:text-red-500 hover:bg-red-50">
               <Trash2 className="w-4 h-4 mr-1" /> ล้างแชท
             </Button>
           </div>
-
           <Card className="flex-1 flex flex-col shadow-lg border border-slate-200 overflow-hidden rounded-xl bg-white">
             <div ref={scrollRef} onScroll={handleScroll} className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth">
               {messages.length === 0 ? (
@@ -283,7 +272,6 @@ const Chat = () => {
 
                         {formData && (
                           <div className="ml-1 w-full max-w-sm">
-                            {/* 👇👇👇 เริ่มแทรกตรงนี้ 👇👇👇 */}
                              {formData.draft_reason && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2 text-xs text-green-800 shadow-sm">
                                     <div className="flex items-center gap-1 font-semibold mb-2 text-green-700">
@@ -295,7 +283,6 @@ const Chat = () => {
                                     </p>
                                 </div>
                              )}
-                             {/* 👆👆👆 จบการแทรก 👆👆👆 */}
                             <Button 
                               onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
@@ -322,7 +309,7 @@ const Chat = () => {
                             {expandedSources === index && (
                               <div className="mt-2 p-2 bg-white rounded-lg border border-slate-200 shadow-sm space-y-1 w-full max-w-sm">
                                 {message.sources.map((source, i) => (
-                                  <a key={i} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs p-2 hover:bg-orange-50 rounded-md transition-colors group">
+                                  <a key={i} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs p-2 hover:bg-orange-50 rounded-md transition-colors">
                                     <FileText className="w-4 h-4 text-slate-400 group-hover:text-orange-500 shrink-0" />
                                     <span className="text-slate-600 group-hover:text-orange-700 font-medium truncate flex-1">{source.doc}</span>
                                     <ExternalLink className="w-3 h-3 text-slate-300 group-hover:text-orange-400 shrink-0" />
@@ -349,11 +336,10 @@ const Chat = () => {
                 </div>
               )}
             </div>
-
             {showScrollTop && (
               <Button
                 onClick={scrollToTop}
-                className="absolute bottom-24 right-6 rounded-full w-10 h-10 p-0 shadow-lg bg-slate-600 hover:bg-slate-700 text-white animate-in fade-in zoom-in duration-300 z-10 opacity-80 hover:opacity-100"
+                className="absolute bottom-24 right-6 rounded-full w-10 h-10 p-0 shadow-lg bg-slate-600 hover:bg-slate-700 text-white animate-in fade-in zoom-in duration-300"
                 title="เลื่อนขึ้นบนสุด"
               >
                 <ArrowUp className="h-5 w-5" />
@@ -367,7 +353,7 @@ const Chat = () => {
                     key={q}
                     onClick={() => handleSend(q)}
                     disabled={loading}
-                    className="whitespace-nowrap px-3 py-1.5 rounded-full bg-slate-50 text-xs text-slate-600 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all border border-slate-200 font-medium"
+                    className="whitespace-nowrap px-3 py-1.5 rounded-full bg-slate-50 text-xs text-slate-600 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all border border-s[...]
                   >
                     {q}
                   </button>
