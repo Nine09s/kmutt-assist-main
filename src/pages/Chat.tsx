@@ -27,14 +27,15 @@ const normalizeFormData = (rawData: any) => {
   if (!rawData) return null;
   return {
     ...rawData,
-    // จัดการ Map ตัวแปรที่ชื่อไม่ตรงกัน
+    // จัดการชื่อตัวแปรให้ตรงกัน
     department: rawData.department || rawData.major || "",
-    // ล้าง format รหัสนักศึกษาให้เป็นตัวเลขล้วน
+    // ลบเว้นวรรคในรหัสนักศึกษา (เช่น "6 8 0" -> "680")
     student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, '') : "",
-    // ใส่ค่า default กัน error
     name: rawData.name || "",
     faculty: rawData.faculty || "",
     form_id: rawData.form_id || "",
+    draft_reason: rawData.draft_reason || "",
+    draft_subject: rawData.draft_subject || "",
   };
 };
 
@@ -47,6 +48,7 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false); // ✅ State ปุ่มเลื่อนขึ้น
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 👇 URL ของ Railway
@@ -96,6 +98,22 @@ const Chat = () => {
     }
   };
 
+  const scrollToTop = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // ✅ ฟังก์ชันตรวจจับการเลื่อน (เพื่อโชว์/ซ่อนปุ่ม)
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    if (scrollTop > 300) {
+      setShowScrollTop(true);
+    } else {
+      setShowScrollTop(false);
+    }
+  };
+
   // ✅ 5. ฟังก์ชันล้างแชท (ลบทุกอย่างเกลี้ยง)
   const handleClearChat = () => {
     setMessages([]);
@@ -126,19 +144,15 @@ const Chat = () => {
     if (match) {
       try {
         let jsonStr = match[1].trim();
-        
-        // จัดการกรณี AI ส่ง Markdown json
+        // ลบ Markdown code block
         jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
-
-        // จัดการกรณี AI ส่งปีกกา 2 ชั้น {{ }}
+        // ลบปีกกาชั้นนอกถ้า AI เผลอส่งซ้อน {{ }}
         if (jsonStr.startsWith("{{") && jsonStr.endsWith("}}")) {
              jsonStr = jsonStr.slice(1, -1);
         }
         
         const rawData = JSON.parse(jsonStr);
-        // แปลงข้อมูลให้พร้อมใช้ทันที
         const formData = normalizeFormData(rawData);
-        
         const cleanContent = content.replace(regex, "").trim(); 
         return { cleanContent, formData };
       } catch (e) {
@@ -250,8 +264,15 @@ const Chat = () => {
 
                   return (
                     <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-2 ${
+                        message.role === "user" ? "hidden" : "bg-orange-100"
+                      }`}>
+                        <Bot className="w-5 h-5 text-orange-600" />
+                      </div>
+
                       <div className={`max-w-[85%] md:max-w-[75%] space-y-2 ${message.role === "user" ? "items-end flex flex-col" : ""}`}>
                         
+                        {/* ข้อความแชท */}
                         <div className={`rounded-2xl px-5 py-3 shadow-sm text-sm leading-relaxed whitespace-pre-wrap break-words ${
                             message.role === "user"
                               ? "bg-orange-500 text-white rounded-br-sm"
@@ -261,19 +282,33 @@ const Chat = () => {
                           {renderMessageContent(cleanContent)}
                         </div>
 
+                        {/* ✅ ปุ่มกดและตัวอย่างร่าง (แสดงเฉพาะเมื่อ AI ส่ง JSON มา) */}
                         {formData && (
-                          <div className="ml-1 w-full max-w-sm">
+                          <div className="ml-1 w-full max-w-sm animate-in zoom-in-95 duration-300">
+                             
+                             {/* กล่องตัวอย่างข้อความร่าง */}
+                             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2 text-xs text-green-800 shadow-sm">
+                                <div className="flex items-center gap-1 font-semibold mb-2 text-green-700">
+                                    <Sparkles className="w-3 h-3 fill-green-500 text-green-600" /> 
+                                    AI ร่างคำร้องให้:
+                                </div>
+                                <p className="italic font-serif leading-relaxed text-slate-700 bg-white/50 p-2 rounded border border-green-100">
+                                  "{formData.draft_reason}"
+                                </p>
+                             </div>
+
                             <Button 
-                              onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
+                              onClick={() => navigate("/form-guide", { state: formData })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5" />
-                              นำข้อมูลไปกรอกฟอร์ม {formData.form_id || ""}
+                              นำข้อมูลไปกรอกฟอร์ม {formData.form_id}
                               <ArrowRight className="ml-auto h-3.5 w-3.5 opacity-70" />
                             </Button>
                           </div>
                         )}
 
+                        {/* เอกสารอ้างอิง */}
                         {message.role === "assistant" && message.sources && message.sources.length > 0 && (
                           <div className="ml-1">
                             <Button
@@ -300,12 +335,22 @@ const Chat = () => {
                           </div>
                         )}
                       </div>
+                      
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ml-2 ${
+                        message.role === "user" ? "bg-slate-200" : "hidden"
+                      }`}>
+                        <UserIcon className="w-5 h-5 text-slate-600" />
+                      </div>
+
                     </div>
                   );
                 })
               )}
               {loading && (
-                <div className="flex justify-start">
+                <div className="flex justify-start items-center gap-2">
+                   <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+                      <Bot className="w-5 h-5 text-orange-600" />
+                   </div>
                   <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                     <div className="flex space-x-1">
                       <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
@@ -316,6 +361,17 @@ const Chat = () => {
                 </div>
               )}
             </div>
+
+            {/* ✅ ปุ่ม Back to Top (ลอยมุมขวาล่าง) */}
+            {showScrollTop && (
+              <Button
+                onClick={scrollToTop}
+                className="absolute bottom-24 right-6 rounded-full w-10 h-10 p-0 shadow-lg bg-slate-600 hover:bg-slate-700 text-white animate-in fade-in zoom-in duration-300 z-10 opacity-80 hover:opacity-100"
+                title="เลื่อนขึ้นบนสุด"
+              >
+                <ArrowUp className="h-5 w-5" />
+              </Button>
+            )}
 
             <div className="p-4 bg-white border-t border-slate-100 shrink-0">
               <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
@@ -336,7 +392,7 @@ const Chat = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="พิมพ์คำถามของคุณที่นี่..."
+                  placeholder="พิมพ์หัวเรื่องที่ต้องการ (เช่น ขอลาป่วย)..."
                   className="rounded-full bg-slate-50 border-slate-200 focus-visible:ring-orange-500 h-12 pl-5 pr-14"
                   disabled={loading}
                 />
