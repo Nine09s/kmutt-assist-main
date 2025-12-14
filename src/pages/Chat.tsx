@@ -1,26 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom"; 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Send,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Trash2,
-  MessageSquare,
-  ArrowRight,
-  User as UserIcon,
-  Bot,
-  Sparkles,
-  ArrowUp,
-} from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { useAuth } from "../AuthContext"; // ✅ Import useAuth เข้าม
+import Navbar from "@/components/Navbar"; 
+import Footer from "@/components/Footer"; 
+import { useAuth } from "../AuthContext"; // ✅ Import useAuth เข้ามา
+
+// --- Interfaces ---
 
 interface Source {
   doc: string;
@@ -35,48 +24,42 @@ interface Message {
 }
 
 const normalizeFormData = (rawData: any) => {
-  if (!rawData || typeof rawData !== "object") return null;
+  if (!rawData) return null;
   return {
     ...rawData,
+    // จัดการ Map ตัวแปรที่ชื่อไม่ตรงกัน
     department: rawData.department || rawData.major || "",
-    student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, "") : "",
+    // ล้าง format รหัสนักศึกษาให้เป็นตัวเลขล้วน
+    student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, '') : "",
+    // ใส่ค่า default กัน error
     name: rawData.name || "",
     faculty: rawData.faculty || "",
     form_id: rawData.form_id || "",
-    draft_reason: rawData.draft_reason || "",
-    draft_subject: rawData.draft_subject || "",
   };
 };
 
 const Chat = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
-
+  const location = useLocation(); 
+  const { user } = useAuth(); // ✅ เรียกใช้ User Context
+  
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<number | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = "https://kmutt-backend-production.up.railway.app";
-
-  useEffect(() => {
-    if (!user) {
-      console.log("🚫 Access Denied: Redirecting to Login");
-      navigate("/", { replace: true });
-    }
-  }, [user, navigate]);
+  // 👇 URL ของ Railway
+  const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
   const quickQuestions = [
-    "ขอลาป่วย",
+    "ขอลาป่วยทำยังไง",
     "ขอลาพักการศึกษา",
-    "ถอนวิชาเรียน",
+    "ถอนวิชาทำยังไง",
     "ขอใบเกรด (Transcript)",
   ];
 
+  // ✅ 1. Load Messages จาก localStorage (เปลี่ยนจาก sessionStorage)
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const saved = localStorage.getItem("chat_history");
@@ -86,6 +69,7 @@ const Chat = () => {
     }
   });
 
+  // ✅ 2. Load Draft ที่พิมพ์ค้างไว้
   useEffect(() => {
     const savedDraft = localStorage.getItem("chat_input_draft");
     if (savedDraft) {
@@ -93,6 +77,7 @@ const Chat = () => {
     }
   }, []);
 
+  // ✅ 3. Save Messages ลง localStorage เมื่อมีข้อความใหม่
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem("chat_history", JSON.stringify(messages));
@@ -100,6 +85,7 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
+  // ✅ 4. Save Draft ทันทีที่พิมพ์
   useEffect(() => {
     localStorage.setItem("chat_input_draft", input);
   }, [input]);
@@ -110,11 +96,7 @@ const Chat = () => {
     }
   };
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    setShowScrollTop(scrollTop > 300);
-  };
-
+  // ✅ 5. ฟังก์ชันล้างแชท (ลบทุกอย่างเกลี้ยง)
   const handleClearChat = () => {
     setMessages([]);
     setInput("");
@@ -125,15 +107,78 @@ const Chat = () => {
     });
   };
 
+  // ✅ Auto-send Logic
+  useEffect(() => {
+    if (location.state && location.state.autoSend) {
+      const messageToSend = location.state.autoSend;
+      const lastMsg = messages[messages.length - 1];
+      if (!lastMsg || lastMsg.content !== messageToSend) {
+         handleSend(messageToSend);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
+
+  const parseBotMessage = (content: string) => {
+    const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/; 
+    const match = content.match(regex);
+    
+    if (match) {
+      try {
+        let jsonStr = match[1].trim();
+        
+        // จัดการกรณี AI ส่ง Markdown json
+        jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
+
+        // จัดการกรณี AI ส่งปีกกา 2 ชั้น {{ }}
+        if (jsonStr.startsWith("{{") && jsonStr.endsWith("}}")) {
+             jsonStr = jsonStr.slice(1, -1);
+        }
+        
+        const rawData = JSON.parse(jsonStr);
+        // แปลงข้อมูลให้พร้อมใช้ทันที
+        const formData = normalizeFormData(rawData);
+        
+        const cleanContent = content.replace(regex, "").trim(); 
+        return { cleanContent, formData };
+      } catch (e) {
+        console.error("JSON Parse Error:", e);
+      }
+    }
+    return { cleanContent: content, formData: null };
+  };
+
+  const renderMessageContent = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-600 underline break-all hover:text-orange-800 font-medium"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const handleSend = async (text: string = input) => {
     if (!text.trim()) return;
 
     const userMessage: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMessage]);
-
+    
+    // ✅ เคลียร์ input และ Draft เมื่อส่งข้อความ
     setInput("");
     localStorage.removeItem("chat_input_draft");
-
+    
     setLoading(true);
 
     try {
@@ -149,17 +194,14 @@ const Chat = () => {
 
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.reply || "ขออภัยครับ ระบบประมวลผลผิดพลาด",
+        content: data.reply,
         sources: data.sources || [],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
     } catch (error) {
       console.error("Error:", error);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง" },
-      ]);
       toast({
         title: "เกิดข้อผิดพลาด",
         description: "ติดต่อ Server ไม่ได้",
@@ -174,35 +216,30 @@ const Chat = () => {
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col h-[calc(100vh-130px)]">
-        <div className="max-w-4xl mx-auto w-full flex flex-col h-full relative">
+        <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
           
           <div className="flex justify-between items-center mb-4 shrink-0 px-2">
             <div>
               <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <MessageSquare className="w-6 h-6 text-orange-500" /> น้องผู้ช่วย มจธ.
               </h1>
-              <p className="text-xs text-slate-500">ที่ปรึกษางานทะเบียนและช่วยร่างเอกสาร 24 ชม.</p>
+              <p className="text-xs text-slate-500">ถามเรื่องทะเบียน เอกสาร คำร้อง ได้ตลอด 24 ชม.</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleClearChat} className="text-slate-400 hover:text-red-500 hover:bg-red-50" title="ออกจากระบบ / ล้างแชท">
-              <Trash2 className="w-4 h-4 mr-1" /> ออกจากระบบ
+            <Button variant="ghost" size="sm" onClick={handleClearChat} className="text-slate-400 hover:text-red-500 hover:bg-red-50">
+              <Trash2 className="w-4 h-4 mr-1" /> ล้างแชท
             </Button>
           </div>
 
-          <Card className="flex-1 flex flex-col shadow-lg border border-slate-200 overflow-hidden rounded-xl bg-white relative">
-            
-            <div 
-              ref={scrollRef} 
-              onScroll={handleScroll}
-              className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth"
-            >
+          <Card className="flex-1 flex flex-col shadow-lg border border-slate-200 overflow-hidden rounded-xl bg-white">
+            <div ref={scrollRef} className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center opacity-60 space-y-4">
                   <div className="bg-orange-100 p-6 rounded-full animate-pulse">
                     <FileText className="h-12 w-12 text-orange-500" />
                   </div>
                   <div>
-                    <p className="text-lg font-medium text-slate-700">สวัสดีครับ! ให้ผมช่วยอะไรดี?</p>
-                    <p className="text-sm text-slate-500">พิมพ์เรื่องที่ต้องการยื่นคำร้อง เดี๋ยวผมช่วยร่างภาษาทางการให้ครับ</p>
+                    <p className="text-lg font-medium text-slate-700">สวัสดีครับ! มีอะไรให้ช่วยไหม?</p>
+                    <p className="text-sm text-slate-500">ลองเลือกคำถามแนะนำด้านล่าง หรือพิมพ์ถามได้เลย</p>
                   </div>
                 </div>
               ) : (
@@ -213,12 +250,6 @@ const Chat = () => {
 
                   return (
                     <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mr-2 ${
-                        message.role === "user" ? "hidden" : "bg-orange-100"
-                      }`}>
-                        <Bot className="w-5 h-5 text-orange-600" />
-                      </div>
-
                       <div className={`max-w-[85%] md:max-w-[75%] space-y-2 ${message.role === "user" ? "items-end flex flex-col" : ""}`}>
                         
                         <div className={`rounded-2xl px-5 py-3 shadow-sm text-sm leading-relaxed whitespace-pre-wrap break-words ${
@@ -231,22 +262,9 @@ const Chat = () => {
                         </div>
 
                         {formData && (
-                          <div className="ml-1 w-full max-w-sm animate-in zoom-in-95 duration-300">
-                             
-                             {formData.draft_reason && (
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-2 text-xs text-green-800 shadow-sm">
-                                    <div className="flex items-center gap-1 font-semibold mb-2 text-green-700">
-                                        <Sparkles className="w-3 h-3 fill-green-500 text-green-600" /> 
-                                        AI ร่างคำร้องให้:
-                                    </div>
-                                    <p className="italic font-serif leading-relaxed text-slate-700 bg-white/50 p-2 rounded border border-green-100">
-                                        "{formData.draft_reason}"
-                                    </p>
-                                </div>
-                             )}
-
+                          <div className="ml-1 w-full max-w-sm">
                             <Button 
-                              onClick={() => navigate("/form-guide", { state: formData })}
+                              onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
                               className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5" />
@@ -282,22 +300,12 @@ const Chat = () => {
                           </div>
                         )}
                       </div>
-                      
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ml-2 ${
-                        message.role === "user" ? "bg-slate-200" : "hidden"
-                      }`}>
-                        <UserIcon className="w-5 h-5 text-slate-600" />
-                      </div>
-
                     </div>
                   );
                 })
               )}
               {loading && (
-                <div className="flex justify-start items-center gap-2">
-                   <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                      <Bot className="w-5 h-5 text-orange-600" />
-                   </div>
+                <div className="flex justify-start">
                   <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                     <div className="flex space-x-1">
                       <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
@@ -308,16 +316,6 @@ const Chat = () => {
                 </div>
               )}
             </div>
-
-            {showScrollTop && (
-              <Button
-                onClick={scrollToTop}
-                className="absolute bottom-24 right-6 rounded-full w-10 h-10 p-0 shadow-lg bg-slate-600 hover:bg-slate-700 text-white animate-in fade-in zoom-in duration-300 z-10 opacity-80 hover:opacity-100"
-                title="เลื่อนขึ้นบนสุด"
-              >
-                <ArrowUp className="h-5 w-5" />
-              </Button>
-            )}
 
             <div className="p-4 bg-white border-t border-slate-100 shrink-0">
               <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
