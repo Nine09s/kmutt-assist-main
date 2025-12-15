@@ -1,26 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { 
-  Send, 
-  FileText, 
-  ChevronDown, 
-  ChevronUp, 
-  Trash2, 
-  MessageSquare, 
-  ArrowRight, 
-  Sparkles, 
-  ArrowUp,
-  Bot
-} from "lucide-react";
+import { Send, FileText, ChevronDown, ChevronUp, ExternalLink, Trash2, MessageSquare, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { useAuth } from "../AuthContext";
+import Navbar from "@/components/Navbar"; 
+import Footer from "@/components/Footer"; 
+import { useAuth } from "../AuthContext"; // ✅ Import useAuth เข้ามา
 
 // --- Interfaces ---
+
 interface Source {
   doc: string;
   page: number;
@@ -31,35 +21,45 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   sources?: Source[];
-  formData?: any;
 }
 
-// Helper function to clean up form data
-const normalizeFormData = (rawData: any, user: any) => {
+const normalizeFormData = (rawData: any) => {
   if (!rawData) return null;
   return {
     ...rawData,
-    student_id: user?.student_id || user?.uid || "",
-    name: rawData.name || user?.displayName || "",
-    faculty: rawData.faculty || "",
-    // รองรับทั้ง department และ major เผื่อ AI ส่งมาไม่ตรง
+    // จัดการ Map ตัวแปรที่ชื่อไม่ตรงกัน
     department: rawData.department || rawData.major || "",
+    // ล้าง format รหัสนักศึกษาให้เป็นตัวเลขล้วน
+    student_id: rawData.student_id ? String(rawData.student_id).replace(/\s/g, '') : "",
+    // ใส่ค่า default กัน error
+    name: rawData.name || "",
+    faculty: rawData.faculty || "",
     form_id: rawData.form_id || "",
-    draft_reason: rawData.draft_reason || "",
-    draft_subject: rawData.draft_subject || "",
   };
 };
 
 const Chat = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, loading } = useAuth();
-
-  const [input, setInput] = useState("");
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const location = useLocation(); 
+  const { user } = useAuth(); // ✅ เรียกใช้ User Context
   
-  // Load chat history from localStorage
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [expandedSources, setExpandedSources] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 👇 URL ของ Railway
+  const API_URL = "https://kmutt-backend-production.up.railway.app"; 
+
+  const quickQuestions = [
+    "ขอลาป่วยทำยังไง",
+    "ขอลาพักการศึกษา",
+    "ถอนวิชาทำยังไง",
+    "ขอใบเกรด (Transcript)",
+  ];
+
+  // ✅ 1. Load Messages จาก localStorage (เปลี่ยนจาก sessionStorage)
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const saved = localStorage.getItem("chat_history");
@@ -69,27 +69,15 @@ const Chat = () => {
     }
   });
 
-  const [expandedSources, setExpandedSources] = useState<number | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // API URL Configuration
-  const API_URL = "https://kmutt-backend-production.up.railway.app";
-
-  // Auth Protection
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/login");
-    }
-  }, [loading, user, navigate]);
-
-  // Load Input Draft
+  // ✅ 2. Load Draft ที่พิมพ์ค้างไว้
   useEffect(() => {
     const savedDraft = localStorage.getItem("chat_input_draft");
-    if (savedDraft) setInput(savedDraft);
+    if (savedDraft) {
+      setInput(savedDraft);
+    }
   }, []);
 
-  // Save History & Scroll
+  // ✅ 3. Save Messages ลง localStorage เมื่อมีข้อความใหม่
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem("chat_history", JSON.stringify(messages));
@@ -97,23 +85,10 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Save Input Draft
+  // ✅ 4. Save Draft ทันทีที่พิมพ์
   useEffect(() => {
     localStorage.setItem("chat_input_draft", input);
   }, [input]);
-
-  // Auto-send from navigation state
-  useEffect(() => {
-    if (user && location.state && location.state.autoSend) {
-      const messageToSend = location.state.autoSend;
-      const lastMsg = messages[messages.length - 1];
-      if (!lastMsg || lastMsg.content !== messageToSend) {
-        handleSend(messageToSend);
-      }
-      // Clear state to prevent loop
-      window.history.replaceState({}, document.title);
-    }
-  }, [user, location.state, messages]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -121,22 +96,7 @@ const Chat = () => {
     }
   };
 
-  const scrollToTop = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    // ปรับให้ปุ่มขึ้นง่ายขึ้น (เลื่อนลงมาแค่ 100px ก็โชว์เลย)
-    if (scrollTop > 100) {
-      setShowScrollTop(true);
-    } else {
-      setShowScrollTop(false);
-    }
-  };
-
+  // ✅ 5. ฟังก์ชันล้างแชท (ลบทุกอย่างเกลี้ยง)
   const handleClearChat = () => {
     setMessages([]);
     setInput("");
@@ -147,55 +107,95 @@ const Chat = () => {
     });
   };
 
+  // ✅ Auto-send Logic
+  useEffect(() => {
+    if (location.state && location.state.autoSend) {
+      const messageToSend = location.state.autoSend;
+      const lastMsg = messages[messages.length - 1];
+      if (!lastMsg || lastMsg.content !== messageToSend) {
+         handleSend(messageToSend);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
+
+  const parseBotMessage = (content: string) => {
+    const regex = /\[\[FORM_DATA:\s*([\s\S]*?)\]\]/; 
+    const match = content.match(regex);
+    
+    if (match) {
+      try {
+        let jsonStr = match[1].trim();
+        
+        // จัดการกรณี AI ส่ง Markdown json
+        jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "");
+
+        // จัดการกรณี AI ส่งปีกกา 2 ชั้น {{ }}
+        if (jsonStr.startsWith("{{") && jsonStr.endsWith("}}")) {
+             jsonStr = jsonStr.slice(1, -1);
+        }
+        
+        const rawData = JSON.parse(jsonStr);
+        // แปลงข้อมูลให้พร้อมใช้ทันที
+        const formData = normalizeFormData(rawData);
+        
+        const cleanContent = content.replace(regex, "").trim(); 
+        return { cleanContent, formData };
+      } catch (e) {
+        console.error("JSON Parse Error:", e);
+      }
+    }
+    return { cleanContent: content, formData: null };
+  };
+
+  const renderMessageContent = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-600 underline break-all hover:text-orange-800 font-medium"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const handleSend = async (text: string = input) => {
     if (!text.trim()) return;
 
     const userMessage: Message = { role: "user", content: text };
-    const newHistory = [...messages, userMessage];
-    setMessages(newHistory);
+    setMessages((prev) => [...prev, userMessage]);
+    
+    // ✅ เคลียร์ input และ Draft เมื่อส่งข้อความ
     setInput("");
-    setLoadingMessages(true);
+    localStorage.removeItem("chat_input_draft");
+    
+    setLoading(true);
 
     try {
-      // Create history payload (last 10 messages)
-      const historyPayload = newHistory.slice(-10).map(({ role, content }) => ({ role, content }));
-
       const res = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            message: text,
-            history: historyPayload
-        }),
+        body: JSON.stringify({ message: text }),
       });
 
       if (!res.ok) throw new Error("Server error");
 
       const data = await res.json();
-      let aiContent = data.reply;
-      let parsedFormData = null;
-
-      // Extract JSON [[FORM_DATA]]
-      const formRegex = /\[\[FORM_DATA:\s*({[\s\S]*?})\]\]/;
-      const match = aiContent.match(formRegex);
-
-      if (match) {
-        try {
-            const jsonStr = match[1];
-            const rawData = JSON.parse(jsonStr);
-            parsedFormData = normalizeFormData(rawData, user);
-            // Remove JSON from display text
-            aiContent = aiContent.replace(match[0], "").trim(); 
-        } catch (e) {
-            console.error("JSON Parse Error", e);
-        }
-      }
 
       const assistantMessage: Message = {
         role: "assistant",
-        content: aiContent,
+        content: data.reply,
         sources: data.sources || [],
-        formData: parsedFormData,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -204,21 +204,13 @@ const Chat = () => {
       console.error("Error:", error);
       toast({
         title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถเชื่อมต่อกับน้องมดได้",
+        description: "ติดต่อ Server ไม่ได้",
         variant: "destructive",
       });
     } finally {
-      setLoadingMessages(false);
+      setLoading(false);
     }
   };
-
-  const quickQuestions = [
-    "ลาป่วยต้องทำยังไง?",
-    "ขอลาพักการศึกษา",
-    "อยากถอนรายวิชา",
-    "ขอใบรับรองเกรด",
-    "ติดต่อห้องทะเบียน"
-  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
@@ -226,30 +218,20 @@ const Chat = () => {
       <main className="flex-1 container mx-auto px-4 py-6 flex flex-col h-[calc(100vh-130px)]">
         <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
           
-          {/* Header */}
           <div className="flex justify-between items-center mb-4 shrink-0 px-2">
             <div>
               <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <MessageSquare className="w-6 h-6 text-orange-500" /> น้องผู้ช่วย มจธ.
               </h1>
-              <p className="text-xs text-slate-500">
-                ถามเรื่องทะเบียน เอกสาร คำร้อง ได้ตลอด 24 ชม.
-              </p>
+              <p className="text-xs text-slate-500">ถามเรื่องทะเบียน เอกสาร คำร้อง ได้ตลอด 24 ชม.</p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearChat}
-              className="text-slate-400 hover:text-red-500 hover:bg-red-50"
-            >
+            <Button variant="ghost" size="sm" onClick={handleClearChat} className="text-slate-400 hover:text-red-500 hover:bg-red-50">
               <Trash2 className="w-4 h-4 mr-1" /> ล้างแชท
             </Button>
           </div>
 
-          <Card className="flex-1 flex flex-col shadow-lg border border-slate-200 overflow-hidden rounded-xl bg-white relative">
-            
-            {/* Chat Area */}
-            <div ref={scrollRef} onScroll={handleScroll} className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth">
+          <Card className="flex-1 flex flex-col shadow-lg border border-slate-200 overflow-hidden rounded-xl bg-white">
+            <div ref={scrollRef} className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 scroll-smooth">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center opacity-60 space-y-4">
                   <div className="bg-orange-100 p-6 rounded-full animate-pulse">
@@ -261,133 +243,87 @@ const Chat = () => {
                   </div>
                 </div>
               ) : (
-                messages.map((message, index) => (
-                  <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                    
-                    {/* Bot Avatar */}
-                    {message.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center mr-2 shrink-0 self-start mt-1">
-                          <Bot className="w-5 h-5 text-orange-600" />
-                      </div>
-                    )}
+                messages.map((message, index) => {
+                  const { cleanContent, formData } = message.role === "assistant" 
+                    ? parseBotMessage(message.content)
+                    : { cleanContent: message.content, formData: null };
 
-                    <div className={`max-w-[85%] space-y-2`}>
-                      {/* Chat Bubble */}
-                      <div className={`p-3 rounded-xl shadow-sm text-sm leading-relaxed whitespace-pre-wrap ${
-                          message.role === "user" 
-                          ? "bg-orange-500 text-white rounded-tr-none" 
-                          : "bg-white border border-slate-200 text-slate-800 rounded-tl-none"
-                      }`}>
-                          {message.content}
-                      </div>
-
-                      {/* ✅ Smart Draft & Form Button */}
-                      {message.formData && (
-                        <div className="mt-2 p-4 bg-white border border-slate-200 rounded-lg shadow-sm">
-                            {/* ส่วนแสดงเหตุผลที่ AI ร่างให้ (Smart Draft UI) */}
-                            {message.formData.draft_reason && (
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3 text-xs text-green-800 shadow-sm relative overflow-hidden">
-                                    {/* Decoration bg */}
-                                    <div className="absolute top-0 right-0 -mt-2 -mr-2 w-10 h-10 bg-green-200 rounded-full opacity-20 blur-xl"></div>
-                                    
-                                    <div className="flex items-center gap-1.5 font-semibold mb-2 text-green-700">
-                                        <Sparkles className="w-3.5 h-3.5 fill-green-500 text-green-600 animate-pulse" /> 
-                                        AI ร่างคำร้องให้:
-                                    </div>
-                                    <p className="italic font-serif leading-relaxed text-slate-700 bg-white/60 p-2 rounded border border-green-100">
-                                        "{message.formData.draft_reason}"
-                                    </p>
-                                </div>
-                            )}
-
-                            <h4 className="font-semibold text-slate-800 mb-1 flex items-center text-sm">
-                                <FileText className="w-4 h-4 mr-1 text-orange-500" />
-                                พร้อมสร้างเอกสาร: {message.formData.form_id}
-                            </h4>
-                            <p className="text-xs text-slate-500 mb-3">
-                                หัวข้อ: {message.formData.draft_subject}
-                            </p>
-                            <Button 
-                                size="sm" 
-                                className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm h-9 text-xs"
-                                onClick={() => navigate("/form-guide", { 
-                                  state: { 
-                                    ...message.formData, 
-                                    // Ensure department is populated
-                                    department: message.formData.department || message.formData.major || "" 
-                                  } 
-                                })}
-                            >
-                                ตรวจสอบและดาวน์โหลดเอกสาร <ArrowRight className="w-4 h-4 ml-1" />
-                            </Button>
+                  return (
+                    <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                      <div className={`max-w-[85%] md:max-w-[75%] space-y-2 ${message.role === "user" ? "items-end flex flex-col" : ""}`}>
+                        
+                        <div className={`rounded-2xl px-5 py-3 shadow-sm text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                            message.role === "user"
+                              ? "bg-orange-500 text-white rounded-br-sm"
+                              : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
+                          }`}
+                        >
+                          {renderMessageContent(cleanContent)}
                         </div>
-                      )}
 
-                      {/* Sources Accordion */}
-                      {message.sources && message.sources.length > 0 && (
-                          <div className="mt-1">
-                               <button
-                                  onClick={() => setExpandedSources(expandedSources === index ? null : index)}
-                                  className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
-                              >
-                                  {expandedSources === index ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                  อ้างอิงจาก {message.sources.length} เอกสาร
-                              </button>
-                              
-                              {expandedSources === index && (
-                                  <div className="mt-2 space-y-1 pl-2 border-l-2 border-slate-200 animate-in slide-in-from-top-1 duration-200">
-                                      {message.sources.map((src, i) => (
-                                          <a 
-                                              key={i} 
-                                              href={src.url} 
-                                              target="_blank" 
-                                              rel="noreferrer"
-                                              className="block text-xs text-blue-500 hover:underline truncate"
-                                          >
-                                              📄 {src.doc} (หน้า {src.page})
-                                          </a>
-                                      ))}
-                                  </div>
-                              )}
+                        {formData && (
+                          <div className="ml-1 w-full max-w-sm">
+                            <Button 
+                              onClick={() => navigate("/form-guide", { state: { ...formData, department: formData.department || formData.major || "" } })}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white shadow-sm border-green-200 h-9 text-xs"
+                            >
+                              <FileText className="mr-2 h-3.5 w-3.5" />
+                              นำข้อมูลไปกรอกฟอร์ม {formData.form_id || ""}
+                              <ArrowRight className="ml-auto h-3.5 w-3.5 opacity-70" />
+                            </Button>
                           </div>
-                      )}
+                        )}
+
+                        {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+                          <div className="ml-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setExpandedSources(expandedSources === index ? null : index)}
+                              className="text-xs h-7 bg-white border-slate-200 hover:bg-slate-50 text-slate-600"
+                            >
+                              📚 เอกสารอ้างอิง ({message.sources.length})
+                              {expandedSources === index ? <ChevronUp className="ml-1 h-3 w-3" /> : <ChevronDown className="ml-1 h-3 w-3" />}
+                            </Button>
+                            
+                            {expandedSources === index && (
+                              <div className="mt-2 p-2 bg-white rounded-lg border border-slate-200 shadow-sm space-y-1 w-full max-w-sm">
+                                {message.sources.map((source, i) => (
+                                  <a key={i} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs p-2 hover:bg-orange-50 rounded-md transition-colors group">
+                                    <FileText className="w-4 h-4 text-slate-400 group-hover:text-orange-500 shrink-0" />
+                                    <span className="text-slate-600 group-hover:text-orange-700 font-medium truncate flex-1">{source.doc}</span>
+                                    <ExternalLink className="w-3 h-3 text-slate-300 group-hover:text-orange-400 shrink-0" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                    <div className="flex space-x-1">
+                      <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" />
+                      <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce [animation-delay:0.4s]" />
                     </div>
                   </div>
-                ))
-              )}
-              
-              {/* Loading Indicator */}
-              {loadingMessages && (
-                 <div className="flex justify-start">
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                    </div>
-                 </div>
+                </div>
               )}
             </div>
 
-            {/* ⬆️ Scroll to Top Button (ลอยอยู่มุมขวาล่างของ Card) */}
-            {showScrollTop && (
-              <Button
-                onClick={scrollToTop}
-                className="absolute bottom-28 right-6 rounded-full w-10 h-10 p-0 shadow-xl bg-slate-700 hover:bg-slate-800 text-white animate-in fade-in zoom-in duration-300 z-50 opacity-90 hover:opacity-100 border border-slate-500"
-                title="เลื่อนขึ้นบนสุด"
-              >
-                <ArrowUp className="h-5 w-5" />
-              </Button>
-            )}
-
-            {/* Input Area */}
-            <div className="p-4 bg-white border-t border-slate-100 shrink-0 z-20">
-              {/* Quick Questions */}
+            <div className="p-4 bg-white border-t border-slate-100 shrink-0">
               <div className="flex gap-2 overflow-x-auto pb-3 mb-1 scrollbar-hide">
                 {quickQuestions.map((q) => (
                   <button
                     key={q}
                     onClick={() => handleSend(q)}
-                    disabled={loadingMessages}
+                    disabled={loading}
                     className="whitespace-nowrap px-3 py-1.5 rounded-full bg-slate-50 text-xs text-slate-600 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all border border-slate-200 font-medium"
                   >
                     {q}
@@ -395,26 +331,24 @@ const Chat = () => {
                 ))}
               </div>
 
-              {/* Input Field */}
               <div className="flex gap-3 relative">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  onKeyPress={(e) => e.key === "Enter" && handleSend()}
                   placeholder="พิมพ์คำถามของคุณที่นี่..."
-                  className="rounded-full bg-slate-50 border-slate-200 focus-visible:ring-orange-500 h-12 pl-5 pr-14 shadow-inner"
-                  disabled={loadingMessages}
+                  className="rounded-full bg-slate-50 border-slate-200 focus-visible:ring-orange-500 h-12 pl-5 pr-14"
+                  disabled={loading}
                 />
                 <Button 
                   onClick={() => handleSend()} 
-                  disabled={!input.trim() || loadingMessages} 
-                  className="absolute right-1 top-1 rounded-full w-10 h-10 p-0 shadow-sm bg-orange-500 hover:bg-orange-600 text-white transition-all hover:scale-105 active:scale-95"
+                  disabled={!input.trim() || loading} 
+                  className="absolute right-1 top-1 rounded-full w-10 h-10 p-0 shadow-sm bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   <Send className="h-5 w-5" />
                 </Button>
               </div>
             </div>
-
           </Card>
         </div>
       </main>
