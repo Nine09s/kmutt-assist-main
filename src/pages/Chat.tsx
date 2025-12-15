@@ -53,9 +53,10 @@ const Chat = () => {
   const API_URL = "https://kmutt-backend-production.up.railway.app"; 
 
   const quickQuestions = [
-    "ขอลาป่วยทำยังไง",
-    "ขอลาพักการศึกษา",
-    "ขอใบเกรด (Transcript)",
+    "ขอลาป่วยทำยังไง (RO.16)",
+    "ขอลาพักการศึกษา (RO.12)",
+    "ขอลาออก (RO.13)",
+    "ถอนรายวิชาทำยังไง (RO.26)",
   ];
 
   // ✅ 1. Load Messages จาก localStorage (เปลี่ยนจาก sessionStorage)
